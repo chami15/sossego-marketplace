@@ -13,13 +13,20 @@ from pathlib import Path
 
 from dotenv import dotenv_values
 
-RAIZ = Path(__file__).resolve().parent.parent  # raiz do repositório
-ARQUIVO_ENV = RAIZ / ".env"
+RAIZ = Path(__file__).resolve().parent.parent  # raiz do repositório (ou do worktree)
+
+
+def raiz_principal() -> Path:
+    """De onde vêm .env e dados/. O worker roda de um worktree fixo
+    (../sossego-worker) com SOSSEGO_RAIZ_PRINCIPAL apontando para o
+    repositório principal: bruto, sqlite, lock e kill switch ficam num lugar só."""
+    return Path(os.environ.get("SOSSEGO_RAIZ_PRINCIPAL") or RAIZ)
 
 
 def _valores() -> dict[str, str]:
     # O ambiente do processo vence o .env: facilita teste e override pontual.
-    valores = {k: v for k, v in dotenv_values(ARQUIVO_ENV).items() if v is not None}
+    arquivo = raiz_principal() / ".env"
+    valores = {k: v for k, v in dotenv_values(arquivo).items() if v is not None}
     valores.update({k: v for k, v in os.environ.items() if k.startswith(("SOSSEGO_", "ML_"))})
     return valores
 
@@ -68,7 +75,7 @@ class ConfigColeta:
             timeout_s=float(v.get("SOSSEGO_TIMEOUT_S", padrao.timeout_s)),
             pausas_breaker_s=_lista_s(v.get("SOSSEGO_PAUSAS_BREAKER_S"), padrao.pausas_breaker_s),
             backoff_retry_s=_lista_s(v.get("SOSSEGO_BACKOFF_RETRY_S"), padrao.backoff_retry_s),
-            dir_dados=Path(v.get("SOSSEGO_DIR_DADOS", padrao.dir_dados)),
+            dir_dados=Path(v.get("SOSSEGO_DIR_DADOS") or raiz_principal() / "dados"),
         )
 
 
