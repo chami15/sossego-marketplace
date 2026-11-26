@@ -26,3 +26,13 @@ def test_regressao_status_dizia_ok_para_loja_so_sondada_fora_do_worker(tmp_path,
     status(cfg)
     linha = next(l for l in capsys.readouterr().out.splitlines() if l.startswith("pbkids"))
     assert "fora do worker" in linha and not linha.rstrip().endswith("ok")
+
+
+def test_regressao_status_desligado_mandava_usar_worker_em_vez_de_ligar(tmp_path, capsys):
+    """26/11: com dados/DESLIGADO, o status sugeria `.\\sossego.ps1 worker`, que não sobe nada."""
+    cfg = ConfigColeta(dir_dados=tmp_path)
+    Estado(tmp_path / "coleta.sqlite3")
+    (tmp_path / "DESLIGADO").write_text("x", encoding="utf-8")
+    status(cfg)
+    saida = capsys.readouterr().out
+    assert "sossego.ps1 ligar" in saida and "sossego.ps1 worker" not in saida

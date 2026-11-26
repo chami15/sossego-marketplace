@@ -53,7 +53,7 @@ def status(cfg: ConfigColeta) -> None:
         vivo = idade < 180  # batimento a cada 60 s
         print(f"worker: {'VIVO' if vivo else 'SEM BATIMENTO (morto ou travado?)'}  pid {w['pid']}, "
               f"desde {_hora(w['iniciado_em'])}, último batimento há {int(idade)} s")
-    else:
+    elif not (cfg.dir_dados / "DESLIGADO").exists():  # desligado: a linha abaixo já diz como ligar
         print("worker: PARADO (sem dados/worker.json). Ligue com: .\\sossego.ps1 worker")
     if (cfg.dir_dados / "DESLIGADO").exists():
         print("worker: DESLIGADO (dados/DESLIGADO); a tarefa agendada sai na hora. Ligue com: .\\sossego.ps1 ligar")
