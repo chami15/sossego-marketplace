@@ -13,6 +13,7 @@ import time
 
 from config import ConfigColeta, coleta_pausada
 from coleta.estado import EstadoBreaker, Estado
+from coleta.lojas_mvp import LOJAS
 
 
 def _hora(t: float) -> str:
@@ -59,7 +60,11 @@ def status(cfg: ConfigColeta) -> None:
     for loja in estado.lojas_com_atividade():
         ok = estado.ultima_por_classe(loja, "ok")
         b = estado.breaker(loja)
-        if b.desligada:
+        cadastro = LOJAS.get(loja)
+        if cadastro and not cadastro.ativa:
+            # Prioridade máxima: loja fora do worker nunca aparece como "ok".
+            sit = f"INATIVA ({cadastro.motivo_inativa})"
+        elif b.desligada:
             sit = f"DESLIGADA por bloqueio: {b.motivo}"
             alertas.append(f"{loja}: desligada ({b.motivo}). Religar: .\\sossego.ps1 religar {loja}")
         elif b.pausada_ate > agora and b.tipo_motivo == "molde_quebrado":

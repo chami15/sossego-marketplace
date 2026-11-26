@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from typing import Callable
 from urllib.parse import quote, quote_plus
 
+from coleta import ml_api
+
 
 @dataclass(frozen=True)
 class Loja:
@@ -24,7 +26,8 @@ class Loja:
     periodo_min: int                   # intervalo entre rodadas de recoleta
     categorias: frozenset[str]         # onde faz sentido buscar
     verificada: bool = False           # molde de URL confirmado no recon?
-    ativa: bool = True                 # False = fora do worker (motivo no docstring)
+    ativa: bool = True                 # False = fora do worker
+    motivo_inativa: str = ""
 
 
 def _slug_ml(termo: str) -> str:
@@ -34,16 +37,19 @@ def _slug_ml(termo: str) -> str:
 LOJAS: dict[str, Loja] = {
     l.slug: l
     for l in [
-        Loja("mercado-livre", "Mercado Livre", ("mercadolivre.com.br",),
-             lambda t: f"https://lista.mercadolivre.com.br/{_slug_ml(t)}", 60,
-             frozenset({"eletronicos", "tabuleiro"}), ativa=False),
+        # Só API oficial (api.mercadolibre.com). Ativa quando o .env tiver credenciais.
+        Loja("mercado-livre", "Mercado Livre", ("mercadolivre.com.br", "mercadolibre.com"),
+             ml_api.url_busca, 60,
+             frozenset({"eletronicos", "tabuleiro"}), ativa=ml_api.credenciais() is not None,
+             motivo_inativa="HTML bloqueado (interstício); aguarda ML_CLIENT_ID/SECRET no .env"),
         Loja("amazon", "Amazon", ("amazon.com.br",),
              lambda t: f"https://www.amazon.com.br/s?k={quote_plus(t)}",
              120,  # mais propensa a captcha: metade da frequência, também na Black Friday
              frozenset({"eletronicos", "tabuleiro"}), verificada=True),
         Loja("magalu", "Magalu", ("magazineluiza.com.br",),
              lambda t: f"https://www.magazineluiza.com.br/busca/{quote(t)}/", 60,
-             frozenset({"eletronicos", "tabuleiro"}), ativa=False),
+             frozenset({"eletronicos", "tabuleiro"}), ativa=False,
+             motivo_inativa="bloqueio: HTTP 403 na 1ª busca; nova tentativa só depois da BF"),
         Loja("ri-happy", "Ri Happy", ("rihappy.com.br",),
              # API pública de catálogo VTEX: JSON leve, permitida pelo robots.txt.
              lambda t: f"https://www.rihappy.com.br/api/catalog_system/pub/products/search?ft={quote_plus(t)}&_from=0&_to=19",
