@@ -283,7 +283,9 @@ def main(argv: list[str] | None = None) -> int:
     cfg.dir_dados.mkdir(parents=True, exist_ok=True)
     try:
         # Um coletor por vez na máquina: dois processos furariam o intervalo por loja.
-        with FileLock(cfg.dir_dados / "coleta.lock", timeout=0):
+        # --recon só toca lojas inativas (que o worker não coleta): lock próprio.
+        nome_lock = f"recon-{a.lojas.replace(',', '_')}.lock" if a.recon else "coleta.lock"
+        with FileLock(cfg.dir_dados / nome_lock, timeout=0):
             if sys.platform == "win32":
                 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
             asyncio.run(executar(tarefas, continuo=a.continuo))
