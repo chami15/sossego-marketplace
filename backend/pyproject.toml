@@ -1,0 +1,27 @@
+[project]
+name = "sossego"
+version = "0.0.1"
+description = "Sossego: uma busca, todas as lojas, o histórico de preço."
+requires-python = ">=3.13"
+dependencies = [
+    "curl_cffi>=0.7",
+    "python-dotenv>=1.0",
+    "filelock>=3.13",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = ["live: bate de verdade nas lojas; fora do CI (make smoke)"]
+addopts = "-m 'not live'"
