@@ -128,7 +128,7 @@ def test_validador_ignora_maiusculas_e_acentos(termo, pagina):
     assert validador_busca(termo)(Resposta(200, {}, corpo, "u"))
 
 
-async def test_rodada_chama_gancho_no_fim_mesmo_interrompida(monkeypatch):
+async def test_rodada_chama_gancho_no_fim_mesmo_interrompida(monkeypatch, tmp_path):
     import random
     from types import SimpleNamespace
 
@@ -148,5 +148,6 @@ async def test_rodada_chama_gancho_no_fim_mesmo_interrompida(monkeypatch):
     estado.breaker = lambda loja: SimpleNamespace(desligada=False, pausada_ate=estado.pausa, motivo="x")
     monkeypatch.setattr(v, "executar_tarefa", falsa)
     ts = [v.Tarefa("amazon", f"https://www.amazon.com.br/s?k={i}", "busca", str(i)) for i in range(3)]
-    await v.rodada_da_loja(SimpleNamespace(estado=estado), "amazon", ts, 0, random.Random(1), apos=gancho)
+    cliente = SimpleNamespace(estado=estado, cfg=ConfigColeta(dir_dados=tmp_path), pausada=lambda: False)
+    await v.rodada_da_loja(cliente, "amazon", ts, 0, random.Random(1), apos=gancho)
     assert len(feitas) == 1 and ganchos == ["amazon"]

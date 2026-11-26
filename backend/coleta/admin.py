@@ -1,8 +1,11 @@
 """Comandos de operação da coleta.
 
     python -m coleta.admin orcamento        # por loja: req na última hora/dia, breaker
-    python -m coleta.admin parar            # kill switch imediato (cria dados/PARAR)
+    python -m coleta.admin pausar           # worker vivo, sem requisição (cria dados/PARAR); `parar` = alias
     python -m coleta.admin retomar          # remove dados/PARAR
+    python -m coleta.admin desligar         # cria dados/DESLIGADO: worker sai e a tarefa não o sobe
+    python -m coleta.admin ligar            # remove dados/DESLIGADO
+    (encerrar e subir o processo fica no .\sossego.ps1 desligar / ligar)
     python -m coleta.admin religar <loja>   # zera o breaker de uma loja desligada
 """
 
@@ -52,8 +55,10 @@ def status(cfg: ConfigColeta) -> None:
               f"desde {_hora(w['iniciado_em'])}, último batimento há {int(idade)} s")
     else:
         print("worker: PARADO (sem dados/worker.json). Ligue com: .\\sossego.ps1 worker")
+    if (cfg.dir_dados / "DESLIGADO").exists():
+        print("worker: DESLIGADO (dados/DESLIGADO); a tarefa agendada sai na hora. Ligue com: .\\sossego.ps1 ligar")
     if coleta_pausada() or (cfg.dir_dados / "PARAR").exists():
-        print("kill switch: LIGADO")
+        print("coleta: PAUSADA (worker vivo, nenhuma requisição). Retome com: .\\sossego.ps1 retomar")
     estado = Estado(cfg.dir_dados / "coleta.sqlite3")
     print(f"\n{'loja':<16}{'última ok':>14}{'h':>5}{'24h':>6}  situação")
     alertas = []
@@ -95,13 +100,20 @@ def main(argv: list[str]) -> int:
         status(cfg)
     elif cmd == "orcamento":
         orcamento(cfg)
-    elif cmd == "parar":
+    elif cmd in ("pausar", "parar"):
         cfg.dir_dados.mkdir(parents=True, exist_ok=True)
         parar.write_text(time.strftime("%Y-%m-%d %H:%M:%S"), encoding="utf-8")
-        print("Coleta PARADA. Nenhuma requisição sai até: python -m coleta.admin retomar")
+        print("Coleta PAUSADA. O worker segue vivo, sem requisição, até: .\\sossego.ps1 retomar")
     elif cmd == "retomar":
         parar.unlink(missing_ok=True)
         print("dados/PARAR removido." + (" Atenção: SOSSEGO_COLETA_PAUSADA=true ainda vale." if coleta_pausada() else ""))
+    elif cmd == "desligar":
+        cfg.dir_dados.mkdir(parents=True, exist_ok=True)
+        (cfg.dir_dados / "DESLIGADO").write_text(time.strftime("%Y-%m-%d %H:%M:%S"), encoding="utf-8")
+        print("dados/DESLIGADO criado: o worker não sobe mais até: .\\sossego.ps1 ligar")
+    elif cmd == "ligar":
+        (cfg.dir_dados / "DESLIGADO").unlink(missing_ok=True)
+        print("dados/DESLIGADO removido.")
     elif cmd == "religar" and len(argv) == 2:
         estado = Estado(cfg.dir_dados / "coleta.sqlite3")
         estado.salvar_breaker(EstadoBreaker(loja=argv[1]))

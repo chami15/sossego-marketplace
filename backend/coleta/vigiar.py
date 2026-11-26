@@ -33,6 +33,15 @@ from coleta.ml_api import TokenML
 from coleta.ml_api import credenciais as credenciais_ml
 
 ARQUIVO_VIGIA = RAIZ / "vigia.toml"
+ESPERA_PAUSA_S = 30  # pausado: confere a cada 30 s se já pode seguir
+
+
+class WorkerDesligado(Exception):
+    """dados/DESLIGADO existe: o worker sai, e a tarefa agendada não o sobe de novo."""
+
+
+def desligado(dir_dados: Path) -> bool:
+    return (dir_dados / "DESLIGADO").exists()
 log = logging.getLogger("sossego.vigiar")
 
 
@@ -180,6 +189,13 @@ async def rodada_da_loja(cliente: ClienteEducado, loja: str, tarefas: list[Taref
         for i, t in enumerate(tarefas):
             alvo = inicio + i * fatia + rng.uniform(0, fatia * 0.8)
             await asyncio.sleep(max(0, alvo - time.time()))
+            # Pausado: o worker fica vivo, mas nem tenta (sem log de recusa a cada tarefa).
+            while True:
+                if desligado(cliente.cfg.dir_dados):
+                    raise WorkerDesligado
+                if not cliente.pausada():
+                    break
+                await asyncio.sleep(ESPERA_PAUSA_S)
             b = cliente.estado.breaker(loja)
             if b.desligada or b.pausada_ate > time.time():
                 log.warning(json.dumps({"evento": "rodada_interrompida", "loja": loja, "motivo": b.motivo}))
@@ -241,6 +257,8 @@ async def executar(tarefas: list[Tarefa], continuo: bool) -> None:
         await asyncio.gather(*(ciclo(l, ts) for l, ts in por_loja.items()))
     except ColetaPausada as e:
         print(f"PARADO pelo kill switch: {e}", flush=True)
+    except WorkerDesligado:
+        print("DESLIGADO (dados/DESLIGADO): encerrando.", flush=True)
     finally:
         pulso.cancel()
         batimento.unlink(missing_ok=True)
@@ -273,6 +291,13 @@ def main(argv: list[str] | None = None) -> int:
     if a.recon and (a.continuo or not a.lojas):
         p.error("--recon exige --lojas e não vale para --continuo")
 
+    if not (a.dry_run or a.adicionar) and desligado(ConfigColeta.carregar().dir_dados):
+        # Sai antes de lock, log e rede. Pela tarefa agendada (--continuo), em
+        # silêncio: ela tenta a cada 15 min e não deve encher o tarefa.out.
+        if not a.continuo:
+            print("Worker DESLIGADO (dados/DESLIGADO). Ligue com: .\\sossego.ps1 ligar")
+        return 0
+
     if a.adicionar:
         for alvo in a.alvos:
             adicionar(alvo, a.categoria)
@@ -293,6 +318,9 @@ def main(argv: list[str] | None = None) -> int:
     from filelock import FileLock, Timeout
 
     cfg.dir_dados.mkdir(parents=True, exist_ok=True)
+    # Log JSON de toda requisição vai para arquivo; o terminal mostra o resumo.
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
+                        handlers=[logging.FileHandler(cfg.dir_dados / "coleta.log", encoding="utf-8")])
     try:
         # Um coletor por vez na máquina: dois processos furariam o intervalo por loja.
         # --recon só toca lojas inativas (que o worker não coleta): lock próprio.
@@ -308,9 +336,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    _dados = ConfigColeta.carregar().dir_dados
-    _dados.mkdir(parents=True, exist_ok=True)
-    # Log JSON de toda requisição vai para arquivo; o terminal mostra o resumo.
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
-                        handlers=[logging.FileHandler(_dados / "coleta.log", encoding="utf-8")])
     sys.exit(main())
