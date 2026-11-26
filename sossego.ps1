@@ -24,7 +24,7 @@ try {
             $ref = if ($arg) { $arg } else { "fase/02-coleta-e-historico" }
             $wt = Join-Path (Split-Path $PSScriptRoot -Parent) "sossego-worker"
             $commit = git rev-parse --verify "$ref^{commit}"
-            if (-not $?) { throw "ref inexistente: $ref" }
+            if ($LASTEXITCODE -ne 0) { throw "ref inexistente: $ref" }
             $tag = "worker-" + (Get-Date -Format "yyyyMMdd-HHmm")
             git tag -a $tag $commit -m "worker em produção desde $(Get-Date -Format 'dd/MM HH:mm')"
             $anterior = $null
@@ -36,11 +36,14 @@ try {
                 git worktree add -q --detach $wt $tag
             }
             Push-Location (Join-Path $wt "backend")
+            # Não herdar o venv desta pasta; e exit code, não $? (no PS 5.1 um
+            # aviso no stderr do uv deixa $? falso mesmo com sucesso).
+            $venvAntes = $env:VIRTUAL_ENV; $env:VIRTUAL_ENV = $null
             try {
                 uv sync --frozen -q
-                uv run pytest -q
-                $ok = $?
-            } finally { Pop-Location }
+                $ok = $LASTEXITCODE -eq 0
+                if ($ok) { uv run pytest -q; $ok = $LASTEXITCODE -eq 0 }
+            } finally { Pop-Location; $env:VIRTUAL_ENV = $venvAntes }
             if (-not $ok) {
                 if ($anterior) { git -C $wt checkout -q --detach $anterior }
                 git tag -d $tag | Out-Null
