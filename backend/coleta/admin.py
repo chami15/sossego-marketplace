@@ -64,6 +64,10 @@ def status(cfg: ConfigColeta) -> None:
         if cadastro and not cadastro.ativa:
             # Prioridade máxima: loja fora do worker nunca aparece como "ok".
             sit = f"INATIVA ({cadastro.motivo_inativa})"
+        elif cadastro is None:
+            # Só sondada (recon/detecção): nada é coletado dela.
+            pausa = f"; {b.tipo_motivo} até {_hora(b.pausada_ate)}" if b.pausada_ate > agora else ""
+            sit = f"fora do worker (só sondagem{pausa})"
         elif b.desligada:
             sit = f"DESLIGADA por bloqueio: {b.motivo}"
             alertas.append(f"{loja}: desligada ({b.motivo}). Religar: .\\sossego.ps1 religar {loja}")
