@@ -50,7 +50,16 @@ def ler_alvos(caminho: Path = ARQUIVO_VIGIA) -> list[dict]:
     return tomllib.loads(caminho.read_text(encoding="utf-8")).get("alvo", [])
 
 
-def planejar(alvos: list[dict], lojas: list[str] | None = None) -> list[Tarefa]:
+def _liberada(slug: str, lojas: list[str] | None, recon: bool) -> bool:
+    l = LOJAS.get(slug)
+    if l is None or l.ativa:
+        return True
+    # Recon pontual: só loja "em avaliação" citada explicitamente. Loja inativa
+    # por bloqueio (Magalu) nunca volta por aqui.
+    return recon and lojas is not None and slug in lojas and l.motivo_inativa.startswith("em avaliação")
+
+
+def planejar(alvos: list[dict], lojas: list[str] | None = None, recon: bool = False) -> list[Tarefa]:
     tarefas: list[Tarefa] = []
     vistos: set[str] = set()
     for alvo in alvos:
@@ -62,10 +71,10 @@ def planejar(alvos: list[dict], lojas: list[str] | None = None) -> list[Tarefa]:
             cat = alvo.get("categoria", "eletronicos")
             novas = [
                 Tarefa(l.slug, l.url_busca(alvo["termo"]), "busca", alvo["termo"])
-                for l in LOJAS.values() if cat in l.categorias and l.ativa
+                for l in LOJAS.values() if cat in l.categorias
             ]
         for t in novas:
-            if t.loja in LOJAS and not LOJAS[t.loja].ativa:
+            if not _liberada(t.loja, lojas, recon):
                 continue  # loja inativa não recebe nem URL direta
             if (lojas is None or t.loja in lojas) and t.url not in vistos:
                 vistos.add(t.url)
@@ -246,7 +255,11 @@ def main(argv: list[str] | None = None) -> int:
     modo.add_argument("--uma-vez", action="store_true")
     modo.add_argument("--continuo", action="store_true")
     p.add_argument("--adicionar", action="store_true", help="grava os alvos em vigia.toml")
+    p.add_argument("--recon", action="store_true",
+                   help="inclui lojas 'em avaliação' citadas em --lojas (só com --uma-vez ou --dry-run)")
     a = p.parse_args(argv)
+    if a.recon and (a.continuo or not a.lojas):
+        p.error("--recon exige --lojas e não vale para --continuo")
 
     if a.adicionar:
         for alvo in a.alvos:
@@ -254,7 +267,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     alvos = [{"url": x} if x.startswith("http") else {"termo": x, "categoria": a.categoria} for x in a.alvos]
-    tarefas = planejar(alvos or ler_alvos(), a.lojas.split(",") if a.lojas else None)
+    tarefas = planejar(alvos or ler_alvos(), a.lojas.split(",") if a.lojas else None, recon=a.recon)
     cfg = ConfigColeta.carregar()
     if a.dry_run:
         imprimir_dry_run(tarefas, cfg)

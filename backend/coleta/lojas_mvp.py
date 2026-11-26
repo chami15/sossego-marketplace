@@ -54,6 +54,11 @@ LOJAS: dict[str, Loja] = {
              # API pública de catálogo VTEX: JSON leve, permitida pelo robots.txt.
              lambda t: f"https://www.rihappy.com.br/api/catalog_system/pub/products/search?ft={quote_plus(t)}&_from=0&_to=19",
              60, frozenset({"tabuleiro"})),
+        # robots.txt proíbe /busca/*? (com query); /busca/<termo-com-hifens> é permitido.
+        Loja("kabum", "Kabum", ("kabum.com.br",),
+             lambda t: f"https://www.kabum.com.br/busca/{_slug_ml(t)}",
+             120, frozenset({"eletronicos"}), ativa=False,
+             motivo_inativa="em avaliação: recon aguardando aprovação do dono"),
         Loja("ludopedia", "Ludopedia", ("ludopedia.com.br",),
              lambda t: f"https://www.ludopedia.com.br/search?search={quote_plus(t)}", 60,
              frozenset({"tabuleiro"}), verificada=True),

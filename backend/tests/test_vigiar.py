@@ -24,6 +24,14 @@ def test_loja_inativa_fica_fora_do_plano_ate_por_url_direta():
     assert "magalu" not in {x.loja for x in t}
 
 
+def test_recon_inclui_so_loja_em_avaliacao_citada():
+    alvos = [{"termo": "ps5"}]
+    assert "kabum" not in {x.loja for x in planejar(alvos)}
+    t = planejar(alvos, lojas=["kabum", "magalu"], recon=True)
+    assert {x.loja for x in t} == {"kabum"}  # magalu está inativa por bloqueio, não em avaliação
+    assert t[0].url == "https://www.kabum.com.br/busca/ps5"
+
+
 def test_ml_nunca_planeja_html_so_api_oficial():
     t = planejar([{"termo": "ps5"}, {"termo": "dixit", "categoria": "tabuleiro"}])
     assert not any("lista.mercadolivre" in x.url for x in t)
