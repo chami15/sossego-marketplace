@@ -53,7 +53,13 @@ Windows sem make: `.\sossego.ps1 <alvo>` faz o mesmo que `make <alvo>`.
 | `.\sossego.ps1 status` | worker vivo? última coleta ok por loja; bloqueio × molde quebrado |
 | `docker compose up -d db` | Postgres 16 em `127.0.0.1:5434` (a 5433 é de outro Postgres) |
 | `.\sossego.ps1 migrar` | aplica `backend/db/migrations/NNN_*.sql` pendentes |
-| `.\sossego.ps1 historico` | bruto → anúncios + snapshots (idempotente, com dedupe) |
+| `.\sossego.ps1 historico` | bruto → anúncios + snapshots (idempotente, com dedupe); o worker já roda isso no fim de cada rodada |
+| `.\sossego.ps1 atualizar-worker [ref]` | tag `worker-AAAAMMDD-HHMM` no ref (padrão `fase/02-coleta-e-historico`), worktree nela, testes lá, reinicia |
+
+**O worker roda de `..\sossego-worker`** (git worktree em commit fixo), nunca
+desta pasta: checkout aqui não muda o que roda. `.env` e `dados\` continuam
+sendo os daqui (`SOSSEGO_RAIZ_PRINCIPAL`). A `vigia.toml` do worker é a do
+commit fixo: alvo novo só vale depois de commit + `atualizar-worker`.
 
 Testes de banco usam `sossego_test`, recriado a cada sessão: o Postgres precisa estar de pé.
 
