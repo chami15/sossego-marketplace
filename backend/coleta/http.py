@@ -67,7 +67,13 @@ class OrcamentoEsgotado(ColetaRecusada):
 
 
 class SinalDeBloqueio(ColetaRecusada):
-    """A loja deu sinal de que não quer a gente ali. Breaker aberto."""
+    """A loja deu sinal de que não quer a gente ali (403/429/captcha). Breaker aberto."""
+
+
+class MoldeQuebrado(ColetaRecusada):
+    """A página veio, mas sem os dados esperados: o problema é nosso (URL ou
+    layout mudou), não um bloqueio. A loja pausa mesmo assim: melhor parar
+    que insistir. O bruto é salvo antes, para reprocessar depois."""
 
 
 class FalhaTransitoria(Exception):
@@ -95,6 +101,7 @@ class Resposta:
     cabecalhos: dict[str, str]
     corpo: bytes
     url_final: str
+    id_req: int | None = None  # linha em `requisicao`, para classificar depois
 
     def texto(self) -> str:
         return self.corpo.decode("utf-8", errors="replace")
@@ -140,6 +147,10 @@ MARCADORES_DESAFIO = [
     "/cdn-cgi/challenge-platform/h/",
     "access denied</title>",        # Akamai
     "suspeitamos que você seja um robô",
+    # Interstício anti-robô do Mercado Livre (visto em 26/11/2026): 17 KB, botão
+    # "Continuar" e exige JS. Não é página de dados: é a loja dizendo "não".
+    "micro-landing-container",
+    "this page requires javascript to work",
 ]
 
 
@@ -236,22 +247,35 @@ class ClienteEducado:
             if r.status == 304 and em_cache:
                 em_cache.obtido_em = self.relogio.agora()
                 self.estado.guardar_cache(em_cache)
+                self._classificar(r, "ok")
                 self._sucesso(loja)
                 return self._resultado(url, loja, em_cache, do_cache=True)
 
-            motivo = self._motivo_bloqueio(r, validar)
-            if motivo:
-                self._sinal(loja, motivo, _retry_after(r.cabecalhos, self.relogio.agora()))
-                raise SinalDeBloqueio(f"{loja}: {motivo}")
+            bloqueio = self._motivo_bloqueio(r)
+            if bloqueio:
+                self._classificar(r, "bloqueio")
+                self._sinal(loja, bloqueio, _retry_after(r.cabecalhos, self.relogio.agora()))
+                raise SinalDeBloqueio(f"{loja}: {bloqueio}")
 
+            # Bruto antes de validar: se o layout mudou (Black Friday), a
+            # resposta crua fica salva e o parser reprocessa depois.
+            if _sucesso_http(r.status):
+                self._gravar_bruto(loja, url, tipo, r)
+
+            molde = self._motivo_molde(r, validar)
+            if molde:
+                self._classificar(r, "molde_quebrado")
+                self._sinal_molde(loja, molde)
+                raise MoldeQuebrado(f"{loja}: {molde}")
+
+            self._classificar(r, "ok" if _sucesso_http(r.status) else "outro")
             self._sucesso(loja)
             entrada = EntradaCache(
                 url, self.relogio.agora(), r.status, r.cabecalhos, r.corpo,
                 r.cabecalhos.get("etag"), r.cabecalhos.get("last-modified"),
             )
-            if r.status == 200:
+            if _sucesso_http(r.status):
                 self.estado.guardar_cache(entrada)
-                self._gravar_bruto(loja, url, tipo, r)
             return self._resultado(url, loja, entrada, do_cache=False)
 
     # --- etapas -----------------------------------------------------------
@@ -299,7 +323,8 @@ class ClienteEducado:
             self._registrar(loja, url, tipo, inicio, None, int((time.perf_counter() - t0) * 1000), 0, "timeout")
             return None
         dur = int((time.perf_counter() - t0) * 1000)
-        self._registrar(loja, url, tipo, inicio, r.status, dur, len(r.corpo), "enviada")
+        r.id_req = self._registrar(loja, url, tipo, inicio, r.status, dur, len(r.corpo), "enviada",
+                                   "transitoria" if r.status >= 500 else None)
         return r
 
     async def _enviar_com_retry(self, loja, url, tipo, cabecalhos, crawl_delay) -> Resposta:
@@ -325,17 +350,26 @@ class ClienteEducado:
             self._checar_pausa()
         raise FalhaTransitoria(f"{loja}: {'timeout' if r is None else r.status} após {tentativas} retries")
 
-    def _motivo_bloqueio(self, r: Resposta, validar: Validador | None) -> str | None:
+    def _motivo_bloqueio(self, r: Resposta) -> str | None:
         if r.status in (401, 403):
             return f"HTTP {r.status}"
         if r.status == 429:
             return "HTTP 429"
-        desafio = parece_desafio(r)
-        if desafio:
-            return desafio
-        if r.status == 200 and validar is not None and not validar(r):
-            return "resposta sem o conteúdo esperado"
+        return parece_desafio(r)
+
+    def _motivo_molde(self, r: Resposta, validar: Validador | None) -> str | None:
+        if validar is None:
+            return None
+        if _sucesso_http(r.status) and not validar(r):
+            return "página válida, mas sem os dados esperados"
+        if r.status in (404, 410):
+            # Com validador = busca: URL inexistente é molde de URL errado.
+            return f"HTTP {r.status}: molde de URL errado?"
         return None
+
+    def _classificar(self, r: Resposta, classe: str):
+        if r.id_req is not None:
+            self.estado.classificar(r.id_req, classe)
 
     async def _robots(self, loja: str, esquema: str, host: str) -> robots_mod.Robots:
         agora = self.relogio.agora()
@@ -364,6 +398,7 @@ class ClienteEducado:
         b.nivel += 1
         b.ultimo_sinal_em = agora
         b.motivo = motivo
+        b.tipo_motivo = "bloqueio"
         if b.sinais_seguidos >= self.cfg.sinais_seguidos_para_desligar:
             b.desligada = True
             log.error(json.dumps({"evento": "LOJA_DESLIGADA", "loja": loja, "motivo": motivo,
@@ -375,6 +410,21 @@ class ClienteEducado:
                                     "pausa_s": b.pausada_ate - agora, "sinais_seguidos": b.sinais_seguidos}))
         self.estado.salvar_breaker(b)
 
+    def _sinal_molde(self, loja: str, motivo: str):
+        """Molde quebrado pausa com a mesma escada (30 min → 2 h → 6 h), mas
+        NUNCA desliga a loja: não é risco de banimento, e desligar perderia o
+        bruto da Black Friday. Também não conta como sinal de bloqueio."""
+        agora = self.relogio.agora()
+        b = self.estado.breaker(loja)
+        b.molde_seguidos += 1
+        pausa = self.cfg.pausas_breaker_s[min(b.molde_seguidos, len(self.cfg.pausas_breaker_s)) - 1]
+        b.pausada_ate = max(b.pausada_ate, agora + pausa)
+        b.motivo = motivo
+        b.tipo_motivo = "molde_quebrado"
+        log.error(json.dumps({"evento": "MOLDE_QUEBRADO", "loja": loja, "motivo": motivo,
+                              "pausa_s": pausa, "molde_seguidos": b.molde_seguidos}))
+        self.estado.salvar_breaker(b)
+
     def _pausar(self, loja: str, segundos: float, motivo: str):
         b = self.estado.breaker(loja)
         b.pausada_ate = max(b.pausada_ate, self.relogio.agora() + segundos)
@@ -383,16 +433,18 @@ class ClienteEducado:
 
     def _sucesso(self, loja: str):
         b = self.estado.breaker(loja)
-        if b.sinais_seguidos:
+        if b.sinais_seguidos or b.molde_seguidos:
             b.sinais_seguidos = 0
+            b.molde_seguidos = 0
             self.estado.salvar_breaker(b)
 
     # --- registro ---------------------------------------------------------
-    def _registrar(self, loja, url, tipo, inicio, status, dur, bytes_, resultado):
-        self.estado.registrar(loja=loja, url=url, tipo=tipo, inicio=inicio, status=status,
-                              duracao_ms=dur, bytes_=bytes_, resultado=resultado)
+    def _registrar(self, loja, url, tipo, inicio, status, dur, bytes_, resultado, classe=None) -> int:
+        id_ = self.estado.registrar(loja=loja, url=url, tipo=tipo, inicio=inicio, status=status,
+                                    duracao_ms=dur, bytes_=bytes_, resultado=resultado, classe=classe)
         log.info(json.dumps({"evento": "requisicao", "loja": loja, "url": url, "tipo": tipo,
                              "status": status, "duracao_ms": dur, "bytes": bytes_, "resultado": resultado}))
+        return id_
 
     def _log_local(self, url, tipo, resultado):
         log.warning(json.dumps({"evento": resultado, "url": url, "tipo": tipo}))
@@ -418,6 +470,11 @@ class ClienteEducado:
         }
         with gzip.open(pasta / f"{carimbo}Z_{tipo}_{h}.json.gz", "wt", encoding="utf-8") as f:
             json.dump(registro, f, ensure_ascii=False)
+
+
+def _sucesso_http(status: int) -> bool:
+    # 206: a VTEX responde assim a busca paginada, com o corpo completo.
+    return status in (200, 203, 206)
 
 
 def _robots_de(status: int | None, conteudo: str) -> robots_mod.Robots:

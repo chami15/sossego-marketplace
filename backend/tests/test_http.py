@@ -16,6 +16,7 @@ from coleta.http import (
     FalhaTransitoria,
     LojaDesligada,
     LojaEmPausa,
+    MoldeQuebrado,
     OrcamentoEsgotado,
     Resposta,
     SinalDeBloqueio,
@@ -201,10 +202,76 @@ async def test_429_abre_breaker_respeitando_retry_after_maior(relogio, transport
     assert c.estado.breaker("loja.com").pausada_ate == pytest.approx(relogio.agora() + 7200, abs=10)
 
 
-async def test_conteudo_inesperado_abre_o_breaker(relogio, transporte):
+async def test_conteudo_inesperado_pausa_a_loja_como_molde_quebrado(relogio, transporte):
+    c = cliente(relogio, transporte)
+    with pytest.raises(MoldeQuebrado):
+        await c.obter("https://loja.com/p/1", tipo="produto", validar=lambda resp: b"preco" in resp.corpo)
+    b = c.estado.breaker("loja.com")
+    assert b.tipo_motivo == "molde_quebrado" and b.sinais_seguidos == 0
+    assert b.pausada_ate == pytest.approx(relogio.agora() + 1800, abs=10)
+    with pytest.raises(LojaEmPausa):
+        await c.obter("https://loja.com/p/2", tipo="produto")
+    assert len(transporte.sem_robots()) == 1
+
+
+async def test_bloqueio_registra_tipo_bloqueio(relogio, transporte):
+    transporte.em("https://loja.com/p", r(403))
     c = cliente(relogio, transporte)
     with pytest.raises(SinalDeBloqueio):
-        await c.obter("https://loja.com/p/1", tipo="produto", validar=lambda resp: b"preco" in resp.corpo)
+        await c.obter("https://loja.com/p", tipo="produto")
+    assert c.estado.breaker("loja.com").tipo_motivo == "bloqueio"
+
+
+async def test_molde_quebrado_escala_mas_nunca_desliga(relogio, transporte):
+    c = cliente(relogio, transporte)
+    nunca = lambda resp: False  # noqa: E731
+    pausas = []
+    for i in range(5):
+        with pytest.raises(MoldeQuebrado):
+            await c.obter(f"https://loja.com/busca?q={i}", tipo="busca", validar=nunca)
+        b = c.estado.breaker("loja.com")
+        pausas.append(round(b.pausada_ate - relogio.agora()))
+        relogio.t = b.pausada_ate + 1
+    assert not c.estado.breaker("loja.com").desligada
+    assert pausas[:3] == [pytest.approx(1800, abs=10), pytest.approx(7200, abs=10), pytest.approx(21600, abs=10)]
+
+
+async def test_molde_quebrado_ainda_grava_o_bruto(relogio, transporte, tmp_path):
+    c = cliente(relogio, transporte)
+    c.dir_bruto = tmp_path
+    with pytest.raises(MoldeQuebrado):
+        await c.obter("https://loja.com/busca?q=x", tipo="busca", validar=lambda resp: False)
+    assert len(list(tmp_path.rglob("*.json.gz"))) == 1
+
+
+async def test_404_em_busca_e_molde_quebrado_mas_em_produto_nao(relogio, transporte):
+    transporte.em("https://loja.com/busca?q=x", r(404)).em("https://loja.com/p/sumiu", r(404))
+    c = cliente(relogio, transporte)
+    assert (await c.obter("https://loja.com/p/sumiu", tipo="produto")).status == 404
+    with pytest.raises(MoldeQuebrado):
+        await c.obter("https://loja.com/busca?q=x", tipo="busca", validar=lambda resp: True)
+
+
+async def test_regressao_206_da_vtex_nao_ia_para_bruto_nem_cache(relogio, transporte, tmp_path):
+    """26/11: a API VTEX da Ri Happy responde 206 com o JSON completo; só 200
+    era tratado como sucesso, e a resposta se perdia."""
+    transporte.em("https://loja.com/api?ft=dixit", r(206, b'[{"productName":"Dixit"}]'))
+    c = cliente(relogio, transporte)
+    c.dir_bruto = tmp_path
+    await c.obter("https://loja.com/api?ft=dixit", tipo="busca", validar=lambda resp: True)
+    assert len(list(tmp_path.rglob("*.json.gz"))) == 1
+    assert (await c.obter("https://loja.com/api?ft=dixit", tipo="busca")).do_cache
+    assert c.estado.ultima_por_classe("loja.com", "ok") is not None
+
+
+async def test_requisicoes_ficam_classificadas(relogio, transporte):
+    transporte.em("https://loja.com/ruim", r(403))
+    c = cliente(relogio, transporte)
+    await c.obter("https://loja.com/boa", tipo="produto")
+    assert c.estado.ultima_por_classe("loja.com", "ok") is not None
+    with pytest.raises(SinalDeBloqueio):
+        await c.obter("https://loja.com/ruim", tipo="produto")
+    assert c.estado.ultima_por_classe("loja.com", "bloqueio") is not None
 
 
 async def test_escalada_30min_2h_e_desliga_no_terceiro_sinal_seguido(relogio, transporte):

@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS requisicao (
     status      INTEGER,
     duracao_ms  INTEGER,
     bytes       INTEGER,
-    resultado   TEXT NOT NULL
+    resultado   TEXT NOT NULL,
+    -- classificação depois da resposta: ok | bloqueio | molde_quebrado | transitoria | outro
+    classe      TEXT
 );
 CREATE INDEX IF NOT EXISTS ix_requisicao_loja_inicio ON requisicao (loja, inicio);
 
@@ -35,7 +37,10 @@ CREATE TABLE IF NOT EXISTS breaker (
     pausada_ate       REAL NOT NULL DEFAULT 0,
     desligada         INTEGER NOT NULL DEFAULT 0,
     ultimo_sinal_em   REAL,
-    motivo            TEXT
+    motivo            TEXT,
+    -- bloqueio (403/429/captcha) | molde_quebrado (página válida sem os dados esperados)
+    tipo_motivo       TEXT,
+    molde_seguidos    INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS cache_http (
@@ -66,6 +71,8 @@ class EstadoBreaker:
     desligada: bool = False
     ultimo_sinal_em: float | None = None
     motivo: str | None = None
+    tipo_motivo: str | None = None
+    molde_seguidos: int = 0
 
 
 @dataclass
@@ -88,12 +95,22 @@ class Estado:
         self.db.executescript(ESQUEMA)
 
     # --- log e orçamento -------------------------------------------------
-    def registrar(self, *, loja, url, tipo, inicio, status, duracao_ms, bytes_, resultado) -> None:
-        self.db.execute(
-            "INSERT INTO requisicao (loja, url, tipo, inicio, status, duracao_ms, bytes, resultado)"
-            " VALUES (?,?,?,?,?,?,?,?)",
-            (loja, url, tipo, inicio, status, duracao_ms, bytes_, resultado),
+    def registrar(self, *, loja, url, tipo, inicio, status, duracao_ms, bytes_, resultado, classe=None) -> int:
+        cur = self.db.execute(
+            "INSERT INTO requisicao (loja, url, tipo, inicio, status, duracao_ms, bytes, resultado, classe)"
+            " VALUES (?,?,?,?,?,?,?,?,?)",
+            (loja, url, tipo, inicio, status, duracao_ms, bytes_, resultado, classe),
         )
+        return cur.lastrowid
+
+    def classificar(self, id_: int, classe: str) -> None:
+        self.db.execute("UPDATE requisicao SET classe=? WHERE id=?", (classe, id_))
+
+    def ultima_por_classe(self, loja: str, classe: str) -> float | None:
+        (t,) = self.db.execute(
+            "SELECT max(inicio) FROM requisicao WHERE loja=? AND classe=?", (loja, classe)
+        ).fetchone()
+        return t
 
     def enviadas_desde(self, loja: str, desde: float) -> int:
         # Só conta o que saiu pela rede: acerto de cache e bloqueio local não gastam orçamento.
@@ -129,8 +146,8 @@ class Estado:
     # --- breaker ---------------------------------------------------------
     def breaker(self, loja: str) -> EstadoBreaker:
         linha = self.db.execute(
-            "SELECT loja, sinais_seguidos, nivel, pausada_ate, desligada, ultimo_sinal_em, motivo"
-            " FROM breaker WHERE loja=?",
+            "SELECT loja, sinais_seguidos, nivel, pausada_ate, desligada, ultimo_sinal_em, motivo,"
+            " tipo_motivo, molde_seguidos FROM breaker WHERE loja=?",
             (loja,),
         ).fetchone()
         if not linha:
@@ -139,12 +156,15 @@ class Estado:
 
     def salvar_breaker(self, b: EstadoBreaker) -> None:
         self.db.execute(
-            "INSERT INTO breaker (loja, sinais_seguidos, nivel, pausada_ate, desligada, ultimo_sinal_em, motivo)"
-            " VALUES (?,?,?,?,?,?,?) ON CONFLICT(loja) DO UPDATE SET"
+            "INSERT INTO breaker (loja, sinais_seguidos, nivel, pausada_ate, desligada, ultimo_sinal_em,"
+            " motivo, tipo_motivo, molde_seguidos)"
+            " VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(loja) DO UPDATE SET"
             " sinais_seguidos=excluded.sinais_seguidos, nivel=excluded.nivel,"
             " pausada_ate=excluded.pausada_ate, desligada=excluded.desligada,"
-            " ultimo_sinal_em=excluded.ultimo_sinal_em, motivo=excluded.motivo",
-            (b.loja, b.sinais_seguidos, b.nivel, b.pausada_ate, int(b.desligada), b.ultimo_sinal_em, b.motivo),
+            " ultimo_sinal_em=excluded.ultimo_sinal_em, motivo=excluded.motivo,"
+            " tipo_motivo=excluded.tipo_motivo, molde_seguidos=excluded.molde_seguidos",
+            (b.loja, b.sinais_seguidos, b.nivel, b.pausada_ate, int(b.desligada), b.ultimo_sinal_em,
+             b.motivo, b.tipo_motivo, b.molde_seguidos),
         )
 
     # --- cache HTTP ------------------------------------------------------
