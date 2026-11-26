@@ -168,20 +168,27 @@ async def executar_tarefa(cliente: ClienteEducado, t: Tarefa, token_ml: TokenML 
 
 
 async def rodada_da_loja(cliente: ClienteEducado, loja: str, tarefas: list[Tarefa],
-                         espalhar_s: float, rng: random.Random, token_ml: TokenML | None = None) -> None:
+                         espalhar_s: float, rng: random.Random, token_ml: TokenML | None = None,
+                         apos=None) -> None:
     """Espalha as tarefas ao longo de `espalhar_s`: cada uma cai num ponto
-    aleatório da sua fatia. Nada de disparar tudo no minuto 00."""
+    aleatório da sua fatia. Nada de disparar tudo no minuto 00.
+    `apos(loja)` roda no fim, mesmo se o breaker interromper: o que já foi
+    coletado nesta rodada está no bruto e deve virar snapshot."""
     fatia = espalhar_s / max(1, len(tarefas))
     inicio = time.time()
-    for i, t in enumerate(tarefas):
-        alvo = inicio + i * fatia + rng.uniform(0, fatia * 0.8)
-        await asyncio.sleep(max(0, alvo - time.time()))
-        b = cliente.estado.breaker(loja)
-        if b.desligada or b.pausada_ate > time.time():
-            log.warning(json.dumps({"evento": "rodada_interrompida", "loja": loja, "motivo": b.motivo}))
-            return
-        status = await executar_tarefa(cliente, t, token_ml)
-        print(f"[{time.strftime('%H:%M:%S')}] {loja:<14} {status:<40} {t.url}", flush=True)
+    try:
+        for i, t in enumerate(tarefas):
+            alvo = inicio + i * fatia + rng.uniform(0, fatia * 0.8)
+            await asyncio.sleep(max(0, alvo - time.time()))
+            b = cliente.estado.breaker(loja)
+            if b.desligada or b.pausada_ate > time.time():
+                log.warning(json.dumps({"evento": "rodada_interrompida", "loja": loja, "motivo": b.motivo}))
+                return
+            status = await executar_tarefa(cliente, t, token_ml)
+            print(f"[{time.strftime('%H:%M:%S')}] {loja:<14} {status:<40} {t.url}", flush=True)
+    finally:
+        if apos is not None:
+            await apos(loja)
 
 
 async def executar(tarefas: list[Tarefa], continuo: bool) -> None:
@@ -191,6 +198,11 @@ async def executar(tarefas: list[Tarefa], continuo: bool) -> None:
     cliente = ClienteEducado(estado, transporte, cfg, loja_de=loja_do_host, dir_bruto=cfg.dir_dados / "bruto",
                              estritas=frozenset({"mercado-livre"}))  # 403 com token: desliga e avisa
     token_ml = TokenML(cliente, cliente.relogio) if credenciais_ml() else None
+    # Bruto → snapshots no fim de cada rodada: local, idempotente, sem rede.
+    from coleta.historico import ReprocessoAposRodada
+    from config import database_url
+
+    apos = ReprocessoAposRodada(database_url(), cfg.dir_dados / "bruto")
     rng = random.Random()
     por_loja: dict[str, list[Tarefa]] = {}
     for t in tarefas:
@@ -204,7 +216,7 @@ async def executar(tarefas: list[Tarefa], continuo: bool) -> None:
             ordem = ts[:]
             rng.shuffle(ordem)
             # --uma-vez: espalha só um pouco (as regras de intervalo já valem).
-            await rodada_da_loja(cliente, loja, ordem, periodo * 0.9 if continuo else 0, rng, token_ml)
+            await rodada_da_loja(cliente, loja, ordem, periodo * 0.9 if continuo else 0, rng, token_ml, apos)
             if not continuo:
                 return
             await asyncio.sleep(max(0, periodo - (time.time() - t0)))

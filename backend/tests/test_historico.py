@@ -39,6 +39,18 @@ def snapshots(url):
         return c.execute("SELECT preco, preco_pix, em_estoque FROM preco_snapshot ORDER BY coletado_em").fetchall()
 
 
+async def test_reprocesso_apos_rodada_grava_e_nunca_derruba_a_coleta(banco, tmp_path, caplog):
+    from coleta.historico import ReprocessoAposRodada
+
+    bruto(tmp_path, 0, [produto_vtex(249.99)])
+    apos = ReprocessoAposRodada(banco, tmp_path)
+    await apos("ri-happy")
+    assert len(snapshots(banco)) == 1
+    quebrado = ReprocessoAposRodada("postgresql://x:y@127.0.0.1:1/nada", tmp_path)
+    await quebrado("ri-happy")  # banco fora do ar: loga e segue, não levanta
+    assert any("reprocesso_falhou" in r.message for r in caplog.records)
+
+
 def test_snapshot_so_quando_algo_muda(banco, tmp_path):
     bruto(tmp_path, 0, [produto_vtex(249.99)])
     bruto(tmp_path, 60, [produto_vtex(249.99)])          # igual: sem snapshot novo

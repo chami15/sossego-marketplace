@@ -115,10 +115,36 @@ def processar_arquivo(conn, arq: Path, raiz: Path, tudo: bool, r: Resumo) -> Non
 
 def reprocessar(url: str, dir_bruto: Path, tudo: bool = False) -> Resumo:
     r = Resumo()
-    with psycopg.connect(url, autocommit=True) as conn:
+    # connect_timeout: com o banco fora do ar, o worker não pode ficar preso aqui.
+    with psycopg.connect(url, autocommit=True, connect_timeout=10) as conn:
         for arq in _arquivos(dir_bruto):
             processar_arquivo(conn, arq, dir_bruto, tudo, r)
     return r
+
+
+class ReprocessoAposRodada:
+    """Chamado pelo worker no fim de cada rodada de loja. Local, idempotente,
+    sem rede. Serializado (rodadas de lojas diferentes terminam juntas) e à
+    prova de falha: banco fora do ar não pode parar a coleta, porque o bruto
+    continua sendo gravado e o próximo reprocesso recupera tudo."""
+
+    def __init__(self, url: str, dir_bruto: Path):
+        import asyncio
+
+        self.url, self.dir_bruto = url, dir_bruto
+        self._trava = asyncio.Lock()
+
+    async def __call__(self, loja: str) -> None:
+        import asyncio
+
+        async with self._trava:
+            try:
+                r = await asyncio.to_thread(reprocessar, self.url, self.dir_bruto)
+                log.info(json.dumps({"evento": "reprocesso", "apos_loja": loja, "arquivos": r.arquivos,
+                                     "snapshots": r.snapshots, "sem_mudanca": r.sem_mudanca,
+                                     "alertas": r.alertas, "erros": len(r.erros)}))
+            except Exception as e:  # noqa: BLE001 - de propósito: nada aqui derruba a coleta
+                log.error(json.dumps({"evento": "reprocesso_falhou", "apos_loja": loja, "erro": repr(e)[:300]}))
 
 
 if __name__ == "__main__":
