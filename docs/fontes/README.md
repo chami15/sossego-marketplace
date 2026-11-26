@@ -12,7 +12,24 @@ Verificado em **26/11/2026, ~18h45 (BRT)**, do IP residencial do dono, via
 | Mercado Livre | HTML `lista.mercadolivre.com.br` | 200, mas **interstício anti-robô** (17 KB, "requires JavaScript") | nenhum | — | **não**: aguarda API oficial |
 | Magalu | HTML `/busca/<termo>/` | **403** na 1ª busca | nenhum | difícil | **não**: bloqueou = parou |
 
+| Kabum | `__NEXT_DATA__` na busca HTML (`/busca/<termo>`) | 200, 439 KB, 36 produtos (19h25) | code, nome, price, priceWithDiscount (à vista), oldPrice, maxInstallment, available, seller | fácil | **aguarda aprovação**, 120 min |
+
+### Detecção VTEX (26/11, ~19h)
+
+1 robots.txt + 1 GET em `/api/catalog_system/pub/products/search` por loja.
+Só a **Época** respondeu como VTEX pública (fora por decisão do dono).
+PBKids, Riachuelo, C&A e Beleza na Web: robots.txt proíbe a API. Carrefour: 403.
+Fast Shop: 503 x3. Centauro, Netshoes, Dafiti, Zattini, Renner, Leroy Merlin:
+404. Sephora: 410. Kabum: não é VTEX (recon de HTML feito à parte, acima).
+
 ## Observações
+
+- **Kabum:** robots.txt proíbe `/busca/*?` (com query) e permite
+  `/busca/<termo-com-hifens>`. Os dados ficam em
+  `props.pageProps.data.catalogServer.data`. Atenção para o parser: no
+  PS5 código 989702, `price` = 4.893,76 mas "10x de R$ 459,90" = 4.599,00.
+  `price` parece ser o "de" e `priceWithDiscount` (4.649,07) o à vista.
+  Confirmar o significado de cada campo antes de mapear para `Oferta`.
 
 - **Ri Happy:** o robots.txt proíbe `/*?_q=` (busca HTML). O `ClienteEducado`
   barrou a URL antes de sair. A API pública VTEX não está proibida e é bem mais
