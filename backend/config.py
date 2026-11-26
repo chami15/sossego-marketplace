@@ -20,7 +20,7 @@ ARQUIVO_ENV = RAIZ / ".env"
 def _valores() -> dict[str, str]:
     # O ambiente do processo vence o .env: facilita teste e override pontual.
     valores = {k: v for k, v in dotenv_values(ARQUIVO_ENV).items() if v is not None}
-    valores.update({k: v for k, v in os.environ.items() if k.startswith("SOSSEGO_")})
+    valores.update({k: v for k, v in os.environ.items() if k.startswith(("SOSSEGO_", "ML_"))})
     return valores
 
 

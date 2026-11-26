@@ -29,6 +29,8 @@ from coleta.http import (
     LojaEmPausa, MoldeQuebrado, OrcamentoEsgotado, Resposta, TransporteCurlCffi,
 )
 from coleta.lojas_mvp import LOJAS, loja_do_host, sem_acento
+from coleta.ml_api import TokenML
+from coleta.ml_api import credenciais as credenciais_ml
 
 ARQUIVO_VIGIA = RAIZ / "vigia.toml"
 log = logging.getLogger("sossego.vigiar")
@@ -117,8 +119,15 @@ def validador_busca(termo: str):
         tipo = r.cabecalhos.get("content-type", "")
         texto = sem_acento(r.corpo[:3_000_000].decode("utf-8", errors="ignore"))
         if "json" in tipo:
-            # API VTEX: lista vazia = busca sem resultado (ou molde errado).
-            return len(r.corpo) > 2 and any(p in texto for p in palavras)
+            # VTEX devolve lista; ML devolve {"results": [...]} e ecoa o termo
+            # em "query", então ali o termo no texto não prova nada.
+            try:
+                dados = json.loads(r.corpo)
+            except ValueError:
+                return False
+            if isinstance(dados, dict):
+                dados = dados.get("results") or []
+            return bool(dados) and any(p in texto for p in palavras)
         if len(r.corpo) < 10_000:
             return False
         if "html" in tipo and texto.count("r$") < 3:
@@ -129,10 +138,15 @@ def validador_busca(termo: str):
     return ok
 
 
-async def executar_tarefa(cliente: ClienteEducado, t: Tarefa) -> str:
+async def executar_tarefa(cliente: ClienteEducado, t: Tarefa, token_ml: TokenML | None = None) -> str:
     try:
         validar = validador_busca(t.termo) if t.termo else None
-        res = await cliente.obter(t.url, tipo=t.tipo, validar=validar)
+        cab = None
+        if t.loja == "mercado-livre":
+            if token_ml is None:
+                return "pulada: sem token do ML"
+            cab = await token_ml.cabecalhos()
+        res = await cliente.obter(t.url, tipo=t.tipo, validar=validar, cabecalhos=cab)
         return "cache" if res.do_cache else f"ok {res.status} {len(res.corpo) // 1024} KB"
     except ColetaPausada:
         raise
@@ -145,7 +159,7 @@ async def executar_tarefa(cliente: ClienteEducado, t: Tarefa) -> str:
 
 
 async def rodada_da_loja(cliente: ClienteEducado, loja: str, tarefas: list[Tarefa],
-                         espalhar_s: float, rng: random.Random) -> None:
+                         espalhar_s: float, rng: random.Random, token_ml: TokenML | None = None) -> None:
     """Espalha as tarefas ao longo de `espalhar_s`: cada uma cai num ponto
     aleatório da sua fatia. Nada de disparar tudo no minuto 00."""
     fatia = espalhar_s / max(1, len(tarefas))
@@ -157,7 +171,7 @@ async def rodada_da_loja(cliente: ClienteEducado, loja: str, tarefas: list[Taref
         if b.desligada or b.pausada_ate > time.time():
             log.warning(json.dumps({"evento": "rodada_interrompida", "loja": loja, "motivo": b.motivo}))
             return
-        status = await executar_tarefa(cliente, t)
+        status = await executar_tarefa(cliente, t, token_ml)
         print(f"[{time.strftime('%H:%M:%S')}] {loja:<14} {status:<40} {t.url}", flush=True)
 
 
@@ -165,7 +179,9 @@ async def executar(tarefas: list[Tarefa], continuo: bool) -> None:
     cfg = ConfigColeta.carregar()
     estado = Estado(cfg.dir_dados / "coleta.sqlite3")
     transporte = TransporteCurlCffi()
-    cliente = ClienteEducado(estado, transporte, cfg, loja_de=loja_do_host, dir_bruto=cfg.dir_dados / "bruto")
+    cliente = ClienteEducado(estado, transporte, cfg, loja_de=loja_do_host, dir_bruto=cfg.dir_dados / "bruto",
+                             estritas=frozenset({"mercado-livre"}))  # 403 com token: desliga e avisa
+    token_ml = TokenML(cliente, cliente.relogio) if credenciais_ml() else None
     rng = random.Random()
     por_loja: dict[str, list[Tarefa]] = {}
     for t in tarefas:
@@ -179,7 +195,7 @@ async def executar(tarefas: list[Tarefa], continuo: bool) -> None:
             ordem = ts[:]
             rng.shuffle(ordem)
             # --uma-vez: espalha só um pouco (as regras de intervalo já valem).
-            await rodada_da_loja(cliente, loja, ordem, periodo * 0.9 if continuo else 0, rng)
+            await rodada_da_loja(cliente, loja, ordem, periodo * 0.9 if continuo else 0, rng, token_ml)
             if not continuo:
                 return
             await asyncio.sleep(max(0, periodo - (time.time() - t0)))

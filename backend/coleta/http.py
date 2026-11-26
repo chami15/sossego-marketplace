@@ -109,6 +109,11 @@ class Resposta:
 
 class Transporte(Protocol):
     async def get(self, url: str, cabecalhos: dict[str, str], timeout: float) -> Resposta: ...
+    async def post(self, url: str, cabecalhos: dict[str, str], dados: dict[str, str], timeout: float) -> Resposta: ...
+
+
+# POST só para obter token de aplicação de API oficial. Nada mais.
+TOKENS_PERMITIDOS = frozenset({"https://api.mercadolibre.com/oauth/token"})
 
 
 class TransporteCurlCffi:
@@ -127,6 +132,10 @@ class TransporteCurlCffi:
             r = await self._sessao.get(url, headers=cabecalhos, timeout=timeout, allow_redirects=True)
         except CurlTimeout as e:
             raise TimeoutError(str(e)) from e
+        return Resposta(r.status_code, {k.lower(): v for k, v in r.headers.items()}, r.content, str(r.url))
+
+    async def post(self, url, cabecalhos, dados, timeout) -> Resposta:
+        r = await self._sessao.post(url, headers=cabecalhos, data=dados, timeout=timeout)
         return Resposta(r.status_code, {k.lower(): v for k, v in r.headers.items()}, r.content, str(r.url))
 
     async def fechar(self):
@@ -203,6 +212,9 @@ class ClienteEducado:
     loja_de: Callable[[str], str] = loja_padrao
     pausada: Callable[[], bool] | None = None
     dir_bruto: Path | None = None  # se definido, grava toda resposta nova em .json.gz
+    # Lojas em que o 1º bloqueio já desliga (ex.: API oficial com token: 403
+    # ali é recusa explícita, e o dono quer ser avisado, não que insistamos).
+    estritas: frozenset[str] = frozenset()
 
     def __post_init__(self):
         self._travas: dict[str, asyncio.Lock] = {}
@@ -211,7 +223,35 @@ class ClienteEducado:
             self.pausada = lambda: coleta_pausada() or arquivo_parar.exists()
 
     # --- API pública ------------------------------------------------------
-    async def obter(self, url: str, *, tipo: Tipo, validar: Validador | None = None) -> Resultado:
+    async def obter_token(self, url: str, dados: dict[str, str]) -> dict:
+        """Única exceção ao "só GET": o POST do token de APLICAÇÃO de uma API
+        oficial (client credentials, sem usuário). Só para URLs da lista
+        TOKENS_PERMITIDOS; passa por kill switch, breaker, orçamento e
+        intervalo; nunca vai para cache, bruto ou log com corpo."""
+        self._checar_pausa()
+        if url not in TOKENS_PERMITIDOS:
+            raise UrlProibida(f"POST não permitido: {url}")
+        loja = self.loja_de(urlsplit(url).hostname)
+        async with self._travas.setdefault(loja, asyncio.Lock()):
+            self._checar_breaker(loja)
+            self._checar_orcamento(loja)
+            await self._esperar_vez(loja, None)
+            self._checar_pausa()
+            inicio = self.relogio.agora()
+            r = await self.transporte.post(url, {"Accept": "application/json"}, dados, self.cfg.timeout_s)
+            r.id_req = self._registrar(loja, url, "token", inicio, r.status, 0, len(r.corpo), "enviada")
+            if r.status in (401, 403, 429):
+                self._classificar(r, "bloqueio")
+                self._sinal(loja, f"token: HTTP {r.status}", _retry_after(r.cabecalhos, inicio))
+                raise SinalDeBloqueio(f"{loja}: token recusado (HTTP {r.status})")
+            if r.status != 200:
+                self._classificar(r, "outro")
+                raise FalhaTransitoria(f"{loja}: token HTTP {r.status}")
+            self._classificar(r, "ok")
+            return json.loads(r.corpo)
+
+    async def obter(self, url: str, *, tipo: Tipo, validar: Validador | None = None,
+                    cabecalhos: dict[str, str] | None = None) -> Resultado:
         self._checar_pausa()
         partes = urlsplit(url)
         if partes.scheme not in ("http", "https") or not partes.hostname:
@@ -236,7 +276,7 @@ class ClienteEducado:
                 self._registrar(loja, url, tipo, self.relogio.agora(), None, 0, 0, "bloqueada_local")
                 raise BloqueadaPorRobots(url)
 
-            cond = {}
+            cond = dict(cabecalhos or {})
             if em_cache and em_cache.etag:
                 cond["If-None-Match"] = em_cache.etag
             if em_cache and em_cache.last_modified:
@@ -399,7 +439,7 @@ class ClienteEducado:
         b.ultimo_sinal_em = agora
         b.motivo = motivo
         b.tipo_motivo = "bloqueio"
-        if b.sinais_seguidos >= self.cfg.sinais_seguidos_para_desligar:
+        if b.sinais_seguidos >= self.cfg.sinais_seguidos_para_desligar or loja in self.estritas:
             b.desligada = True
             log.error(json.dumps({"evento": "LOJA_DESLIGADA", "loja": loja, "motivo": motivo,
                                   "acao": f"python -m coleta.admin religar {loja}"}))

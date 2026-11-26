@@ -20,8 +20,14 @@ def test_url_direta_vira_tarefa_de_produto_da_loja_certa():
 
 
 def test_loja_inativa_fica_fora_do_plano_ate_por_url_direta():
-    t = planejar([{"termo": "ps5"}, {"url": "https://produto.mercadolivre.com.br/MLB-123-ps5"}])
-    assert not {"mercado-livre", "magalu"} & {x.loja for x in t}
+    t = planejar([{"termo": "ps5"}, {"url": "https://www.magazineluiza.com.br/ps5/p/123/"}])
+    assert "magalu" not in {x.loja for x in t}
+
+
+def test_ml_nunca_planeja_html_so_api_oficial():
+    t = planejar([{"termo": "ps5"}, {"termo": "dixit", "categoria": "tabuleiro"}])
+    assert not any("lista.mercadolivre" in x.url for x in t)
+    assert all(x.url.startswith("https://api.mercadolibre.com/") for x in t if x.loja == "mercado-livre")
 
 
 def test_hosts_da_mesma_loja_dividem_orcamento():
