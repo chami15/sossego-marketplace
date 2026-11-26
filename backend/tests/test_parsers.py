@@ -54,6 +54,25 @@ def test_ri_happy_vtex_com_ean_pix_e_parcelas():
     assert o.gtin == "3558387010060"
 
 
+KABUM_EM = datetime(2026, 11, 26, 22, 25, tzinfo=timezone.utc)  # hora da coleta real
+
+
+def test_kabum_grava_so_o_confirmado():
+    o = por_id(PARSERS["kabum"](fixture("kabum", "busca_ps5.html"), KABUM_EM))["989702"]
+    assert o.preco == Decimal("4599.00")  # 10 x 459,90 == offer.price
+    assert o.parcelas_max == 10 and o.parcela_valor == Decimal("459.90")
+    assert o.preco_pix is None and o.preco_de is None and o.parcelas_sem_juros is None
+    assert o.em_estoque and o.vendedor == "KaBuM!"
+    assert o.url.startswith("https://www.kabum.com.br/produto/989702/")
+
+
+def test_kabum_descarta_quando_parcelado_nao_bate_com_preco_vigente():
+    # Fora da janela da oferta, o vigente vira `price` (4893,76) e 10 x 459,90 não bate.
+    depois_da_oferta = datetime(2027, 1, 1, tzinfo=timezone.utc)
+    ids = por_id(PARSERS["kabum"](fixture("kabum", "busca_ps5.html"), depois_da_oferta))
+    assert "989702" not in ids
+
+
 def test_dinheiro_e_decimal_nunca_float():
     for loja, nome in [("amazon", "busca_ps5.html"), ("ri-happy", "busca_dixit.json")]:
         for o in PARSERS[loja](fixture(loja, nome), AGORA):

@@ -7,8 +7,10 @@ sabe quais arquivos precisam ser lidos de novo.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from datetime import datetime
+from decimal import Decimal
 from typing import Callable
 from urllib.parse import parse_qs, urlsplit
 
@@ -16,7 +18,7 @@ from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
 from coleta.base import Oferta, brl, dec
 
-PARSER_VERSAO = {"amazon": "1", "ludopedia": "1", "ri-happy": "1"}
+PARSER_VERSAO = {"amazon": "1", "ludopedia": "1", "ri-happy": "1", "kabum": "1"}
 
 
 class SemOfertas(Exception):
@@ -137,7 +139,52 @@ def vtex(loja: str) -> Callable[[str, datetime], list[Oferta]]:
     return parse
 
 
+# --- Kabum (__NEXT_DATA__ da busca) -----------------------------------------
+_RE_PARCELA = re.compile(r"(\d+)\s*x\s*de\s*(R\$\s*[\d.]+,\d{2})", re.I)
+log = logging.getLogger("sossego.parsers")
+
+
+def kabum(corpo: str, coletado_em: datetime) -> list[Oferta]:
+    """Só grava o que está confirmado (docs/fontes/kabum.md): total no cartão
+    conferido contra o parcelamento literal. Pix, "de" e sem juros = None."""
+    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', corpo, re.S)
+    if not m:
+        raise SemOfertas("kabum: sem __NEXT_DATA__")
+    try:
+        dados = json.loads(m.group(1))["props"]["pageProps"]["data"]
+        if isinstance(dados, str):
+            dados = json.loads(dados)
+        itens = dados["catalogServer"]["data"]
+    except (ValueError, KeyError, TypeError) as e:
+        raise SemOfertas(f"kabum: estrutura inesperada ({e!r})") from e
+    agora = coletado_em.timestamp()
+    ofertas = []
+    for p in itens:
+        parc = _RE_PARCELA.search(p.get("maxInstallment") or "")
+        if not parc:
+            continue
+        n, valor = int(parc.group(1)), brl(parc.group(2))
+        total = valor * n
+        oferta = p.get("offer") or {}
+        ativa = oferta.get("price") and (oferta.get("startsAt") or 0) <= agora < (oferta.get("endsAt") or 0)
+        vigente = dec(oferta["price"]) if ativa else dec(p.get("price"))
+        if vigente is None or abs(total - vigente) > Decimal("0.05"):
+            log.warning(json.dumps({"evento": "kabum_preco_inconsistente", "code": p.get("code"),
+                                    "parcelado": str(total), "vigente": str(vigente)}))
+            continue
+        img = p.get("image") or (p.get("images") or [None])[0]
+        ofertas.append(Oferta(
+            loja="kabum", id_externo=str(p["code"]),
+            url=f"https://www.kabum.com.br/produto/{p['code']}/{p.get('friendlyName', '')}",
+            titulo=p.get("name", ""), imagem=img, marca=(p.get("manufacturer") or {}).get("name"),
+            vendedor=p.get("sellerName"), preco=total, parcelas_max=n, parcela_valor=valor,
+            em_estoque=bool(p.get("available")), coletado_em=coletado_em,
+        ))
+    return ofertas
+
+
 PARSERS: dict[str, Callable[[str, datetime], list[Oferta]]] = {
+    "kabum": kabum,
     "amazon": amazon,
     "ludopedia": ludopedia,
     "ri-happy": vtex("ri-happy"),
