@@ -32,17 +32,59 @@ def orcamento(cfg: ConfigColeta) -> None:
         if b.desligada:
             br = f"DESLIGADA ({b.motivo}) -> python -m coleta.admin religar {loja}"
         elif b.pausada_ate > agora:
-            br = f"aberto até {_hora(b.pausada_ate)} ({b.motivo})"
+            br = f"aberto até {_hora(b.pausada_ate)} [{b.tipo_motivo}] ({b.motivo})"
         else:
             br = "fechado"
         print(f"{loja:<16}{f'{h}/{cfg.orcamento_hora}':>10}{f'{d}/{cfg.orcamento_dia}':>13}  {br}")
+
+
+def status(cfg: ConfigColeta) -> None:
+    import json
+
+    agora = time.time()
+    arq = cfg.dir_dados / "worker.json"
+    if arq.exists():
+        w = json.loads(arq.read_text(encoding="utf-8"))
+        idade = agora - w["batimento_em"]
+        vivo = idade < 180  # batimento a cada 60 s
+        print(f"worker: {'VIVO' if vivo else 'SEM BATIMENTO (morto ou travado?)'}  pid {w['pid']}, "
+              f"desde {_hora(w['iniciado_em'])}, último batimento há {int(idade)} s")
+    else:
+        print("worker: PARADO (sem dados/worker.json). Ligue com: .\\sossego.ps1 worker")
+    if coleta_pausada() or (cfg.dir_dados / "PARAR").exists():
+        print("kill switch: LIGADO")
+    estado = Estado(cfg.dir_dados / "coleta.sqlite3")
+    print(f"\n{'loja':<16}{'última ok':>14}{'h':>5}{'24h':>6}  situação")
+    alertas = []
+    for loja in estado.lojas_com_atividade():
+        ok = estado.ultima_por_classe(loja, "ok")
+        b = estado.breaker(loja)
+        if b.desligada:
+            sit = f"DESLIGADA por bloqueio: {b.motivo}"
+            alertas.append(f"{loja}: desligada ({b.motivo}). Religar: .\\sossego.ps1 religar {loja}")
+        elif b.pausada_ate > agora and b.tipo_motivo == "molde_quebrado":
+            sit = f">>> MOLDE QUEBRADO <<< pausa até {_hora(b.pausada_ate)}: {b.motivo}"
+            alertas.append(f"{loja}: o PARSER/URL quebrou, não é bloqueio. Bruto salvo; corrigir molde.")
+        elif b.pausada_ate > agora:
+            sit = f"BLOQUEIO, pausa até {_hora(b.pausada_ate)}: {b.motivo}"
+            alertas.append(f"{loja}: a loja barrou ({b.motivo}). Aguardando a pausa.")
+        else:
+            sit = "ok"
+        print(f"{loja:<16}{_hora(ok) if ok else '-':>14}{estado.enviadas_desde(loja, agora - 3600):>5}"
+              f"{estado.enviadas_desde(loja, agora - 86400):>6}  {sit}")
+    if alertas:
+        print("\nATENÇÃO:")
+        for a in alertas:
+            print(f"  - {a}")
 
 
 def main(argv: list[str]) -> int:
     cfg = ConfigColeta.carregar()
     cmd = argv[0] if argv else "orcamento"
     parar = cfg.dir_dados / "PARAR"
-    if cmd == "orcamento":
+    if cmd == "status":
+        status(cfg)
+    elif cmd == "orcamento":
         orcamento(cfg)
     elif cmd == "parar":
         cfg.dir_dados.mkdir(parents=True, exist_ok=True)

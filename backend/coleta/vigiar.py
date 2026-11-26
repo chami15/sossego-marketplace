@@ -26,7 +26,7 @@ from config import RAIZ, ConfigColeta, coleta_pausada
 from coleta.estado import Estado
 from coleta.http import (
     ClienteEducado, ColetaPausada, ColetaRecusada, FalhaTransitoria, LojaDesligada,
-    LojaEmPausa, OrcamentoEsgotado, Resposta, TransporteCurlCffi,
+    LojaEmPausa, MoldeQuebrado, OrcamentoEsgotado, Resposta, TransporteCurlCffi,
 )
 from coleta.lojas_mvp import LOJAS, loja_do_host, sem_acento
 
@@ -60,9 +60,11 @@ def planejar(alvos: list[dict], lojas: list[str] | None = None) -> list[Tarefa]:
             cat = alvo.get("categoria", "eletronicos")
             novas = [
                 Tarefa(l.slug, l.url_busca(alvo["termo"]), "busca", alvo["termo"])
-                for l in LOJAS.values() if cat in l.categorias
+                for l in LOJAS.values() if cat in l.categorias and l.ativa
             ]
         for t in novas:
+            if t.loja in LOJAS and not LOJAS[t.loja].ativa:
+                continue  # loja inativa não recebe nem URL direta
             if (lojas is None or t.loja in lojas) and t.url not in vistos:
                 vistos.add(t.url)
                 tarefas.append(t)
@@ -112,9 +114,16 @@ def validador_busca(termo: str):
     palavras = [p for p in sem_acento(termo).split() if len(p) >= 3] or [sem_acento(termo)]
 
     def ok(r: Resposta) -> bool:
+        tipo = r.cabecalhos.get("content-type", "")
+        texto = sem_acento(r.corpo[:3_000_000].decode("utf-8", errors="ignore"))
+        if "json" in tipo:
+            # API VTEX: lista vazia = busca sem resultado (ou molde errado).
+            return len(r.corpo) > 2 and any(p in texto for p in palavras)
         if len(r.corpo) < 10_000:
             return False
-        texto = sem_acento(r.corpo[:2_000_000].decode("utf-8", errors="ignore"))
+        if "html" in tipo and texto.count("r$") < 3:
+            # Página de busca de loja sem preço nenhum não é página de busca.
+            return False
         return any(p in texto for p in palavras)
 
     return ok
@@ -129,6 +138,8 @@ async def executar_tarefa(cliente: ClienteEducado, t: Tarefa) -> str:
         raise
     except (LojaEmPausa, LojaDesligada, OrcamentoEsgotado) as e:
         return f"pulada: {e}"
+    except MoldeQuebrado as e:
+        return f"MOLDE QUEBRADO (bruto salvo): {e}"
     except (ColetaRecusada, FalhaTransitoria) as e:
         return f"falhou: {e}"
 
@@ -173,11 +184,29 @@ async def executar(tarefas: list[Tarefa], continuo: bool) -> None:
                 return
             await asyncio.sleep(max(0, periodo - (time.time() - t0)))
 
+    batimento = cfg.dir_dados / "worker.json"
+    iniciado = time.time()
+
+    async def bater():
+        # `status` decide se o worker está vivo pela idade deste arquivo.
+        import os
+
+        while True:
+            batimento.write_text(json.dumps({
+                "pid": os.getpid(), "modo": "continuo" if continuo else "uma-vez",
+                "iniciado_em": iniciado, "batimento_em": time.time(),
+                "lojas": sorted(por_loja),
+            }), encoding="utf-8")
+            await asyncio.sleep(60)
+
+    pulso = asyncio.create_task(bater())
     try:
         await asyncio.gather(*(ciclo(l, ts) for l, ts in por_loja.items()))
     except ColetaPausada as e:
-        print(f"PARADO pelo kill switch: {e}")
+        print(f"PARADO pelo kill switch: {e}", flush=True)
     finally:
+        pulso.cancel()
+        batimento.unlink(missing_ok=True)
         await transporte.fechar()
 
 

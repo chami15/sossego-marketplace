@@ -1,8 +1,10 @@
 """Lojas do MVP: como montar a URL de busca e a cada quanto tempo recoletar.
 
-ATENÇÃO: os moldes de URL abaixo são HIPÓTESES ainda não verificadas
-(26/11/2026). Serão confirmados no reconhecimento (Fase 0) com uma única
-requisição por loja, e só então documentados em docs/fontes/<loja>.md.
+Recon mínimo de 26/11/2026 (detalhes em docs/fontes/README.md):
+- amazon, ludopedia: molde verificado, preço na página de busca.
+- ri-happy: busca HTML proibida pelo robots.txt (/*?_q=); usa a API pública VTEX.
+- mercado-livre: interstício anti-robô na busca HTML. Inativa até a API oficial.
+- magalu: 403 na primeira busca. Inativa: bloqueou = parou.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ class Loja:
     periodo_min: int                   # intervalo entre rodadas de recoleta
     categorias: frozenset[str]         # onde faz sentido buscar
     verificada: bool = False           # molde de URL confirmado no recon?
+    ativa: bool = True                 # False = fora do worker (motivo no docstring)
 
 
 def _slug_ml(termo: str) -> str:
@@ -33,20 +36,21 @@ LOJAS: dict[str, Loja] = {
     for l in [
         Loja("mercado-livre", "Mercado Livre", ("mercadolivre.com.br",),
              lambda t: f"https://lista.mercadolivre.com.br/{_slug_ml(t)}", 60,
-             frozenset({"eletronicos", "tabuleiro"})),
+             frozenset({"eletronicos", "tabuleiro"}), ativa=False),
         Loja("amazon", "Amazon", ("amazon.com.br",),
              lambda t: f"https://www.amazon.com.br/s?k={quote_plus(t)}",
-             120,  # mais propensa a captcha: metade da frequência das outras
-             frozenset({"eletronicos", "tabuleiro"})),
+             120,  # mais propensa a captcha: metade da frequência, também na Black Friday
+             frozenset({"eletronicos", "tabuleiro"}), verificada=True),
         Loja("magalu", "Magalu", ("magazineluiza.com.br",),
              lambda t: f"https://www.magazineluiza.com.br/busca/{quote(t)}/", 60,
-             frozenset({"eletronicos", "tabuleiro"})),
+             frozenset({"eletronicos", "tabuleiro"}), ativa=False),
         Loja("ri-happy", "Ri Happy", ("rihappy.com.br",),
-             lambda t: f"https://www.rihappy.com.br/{quote(t)}?_q={quote_plus(t)}&map=ft", 60,
-             frozenset({"tabuleiro"})),
+             # API pública de catálogo VTEX: JSON leve, permitida pelo robots.txt.
+             lambda t: f"https://www.rihappy.com.br/api/catalog_system/pub/products/search?ft={quote_plus(t)}&_from=0&_to=19",
+             60, frozenset({"tabuleiro"})),
         Loja("ludopedia", "Ludopedia", ("ludopedia.com.br",),
              lambda t: f"https://www.ludopedia.com.br/search?search={quote_plus(t)}", 60,
-             frozenset({"tabuleiro"})),
+             frozenset({"tabuleiro"}), verificada=True),
     ]
 }
 

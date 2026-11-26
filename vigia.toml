@@ -28,13 +28,7 @@ categoria = "eletronicos"
 termo = "macbook"
 categoria = "eletronicos"
 
-[[alvo]]
-termo = "teclado"
-categoria = "eletronicos"
-
-[[alvo]]
-termo = "mouse"
-categoria = "eletronicos"
+# teclado e mouse: aguardando os modelos ("[teclado X]", "[mouse Y]")
 
 [[alvo]]
 termo = "dixit"

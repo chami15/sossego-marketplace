@@ -1,3 +1,5 @@
+import pytest
+
 from coleta.http import Resposta
 from coleta.lojas_mvp import loja_do_host
 from coleta.vigiar import imprimir_dry_run, planejar, validador_busca
@@ -13,8 +15,13 @@ def test_categoria_decide_as_lojas():
 
 
 def test_url_direta_vira_tarefa_de_produto_da_loja_certa():
-    (t,) = planejar([{"url": "https://produto.mercadolivre.com.br/MLB-123-ps5"}])
-    assert t.loja == "mercado-livre" and t.tipo == "produto"
+    (t,) = planejar([{"url": "https://www.amazon.com.br/dp/B0GWNKJDCZ"}])
+    assert t.loja == "amazon" and t.tipo == "produto"
+
+
+def test_loja_inativa_fica_fora_do_plano_ate_por_url_direta():
+    t = planejar([{"termo": "ps5"}, {"url": "https://produto.mercadolivre.com.br/MLB-123-ps5"}])
+    assert not {"mercado-livre", "magalu"} & {x.loja for x in t}
 
 
 def test_hosts_da_mesma_loja_dividem_orcamento():
@@ -43,3 +50,49 @@ def test_validador_de_busca_recusa_pagina_pequena_ou_sem_termo():
     assert not ok(Resposta(200, {}, b"<html>oi</html>", "u"))
     assert not ok(Resposta(200, {}, b"x" * 20_000, "u"))
     assert ok(Resposta(200, {}, b"x" * 20_000 + "Ito - Jogo de Cartas".encode(), "u"))
+
+
+PAGINA_ML_EXIGE_JS = (
+    "<html><head><title>Ps5 | Mercado Livre</title><style>.micro-landing-container{display:flex}"
+    + "x" * 15_000 + "</style></head><body><div class='micro-landing-container'>"
+    "<button>Continuar</button><noscript>This page requires JavaScript to work. Please enable "
+    "JavaScript in your browser to continue.</noscript></div></body></html>"
+).encode()
+
+
+def test_regressao_interstício_que_exige_javascript_passava_como_ok():
+    """26/11: o ML devolveu 17 KB de interstício anti-robô com 'Ps5' no
+    <title>; o validador aceitou como página de busca boa."""
+    from coleta.http import parece_desafio
+
+    r = Resposta(200, {"content-type": "text/html; charset=utf-8"}, PAGINA_ML_EXIGE_JS,
+                 "https://lista.mercadolivre.com.br/ps5")
+    assert parece_desafio(r) is not None
+    assert not validador_busca("ps5")(r)
+
+
+def test_validador_de_busca_html_exige_precos():
+    sem_preco = Resposta(200, {"content-type": "text/html"}, b"x" * 20_000 + b"dixit", "u")
+    com_preco = Resposta(200, {"content-type": "text/html"},
+                         b"x" * 20_000 + b"dixit R$ 145,50 R$ 60,00 R$ 134,95", "u")
+    assert not validador_busca("dixit")(sem_preco)
+    assert validador_busca("dixit")(com_preco)
+
+
+def test_validador_de_busca_json_vtex():
+    corpo = b'[{"productName":"Jogo Dixit","items":[{"sellers":[{"commertialOffer":{"Price":149.9}}]}]}]'
+    assert validador_busca("dixit")(Resposta(200, {"content-type": "application/json"}, corpo, "u"))
+    assert not validador_busca("dixit")(Resposta(200, {"content-type": "application/json"}, b"[]", "u"))
+
+
+@pytest.mark.parametrize("termo,pagina", [
+    ("dixit", "DIXIT ODYSSEY"),
+    ("DIXIT", "Dixit"),
+    ("macbook", "MacBook Air M3"),
+    ("jogo ito", "JÔGO de cartas"),       # acento só na página
+    ("pôster", "POSTER gigante"),         # acento só no termo
+    ("nintendo switch", "Nintendo Switch 2"),
+])
+def test_validador_ignora_maiusculas_e_acentos(termo, pagina):
+    corpo = b"x" * 20_000 + pagina.encode("utf-8")
+    assert validador_busca(termo)(Resposta(200, {}, corpo, "u"))
