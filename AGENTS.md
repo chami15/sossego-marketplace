@@ -50,6 +50,12 @@ Windows sem make: `.\sossego.ps1 <alvo>` faz o mesmo que `make <alvo>`.
 | `make orcamento` | requisições por loja (1 h / 24 h) e estado do breaker |
 | `make parar` / `make retomar` | kill switch (cria/remove `dados/PARAR`) |
 | `.\sossego.ps1 religar <loja>` | religa loja desligada pelo breaker |
+| `.\sossego.ps1 status` | worker vivo? última coleta ok por loja; bloqueio × molde quebrado |
+| `docker compose up -d db` | Postgres 16 em `127.0.0.1:5434` (a 5433 é de outro Postgres) |
+| `.\sossego.ps1 migrar` | aplica `backend/db/migrations/NNN_*.sql` pendentes |
+| `.\sossego.ps1 historico` | bruto → anúncios + snapshots (idempotente, com dedupe) |
+
+Testes de banco usam `sossego_test`, recriado a cada sessão: o Postgres precisa estar de pé.
 
 ## Mapa de leitura
 

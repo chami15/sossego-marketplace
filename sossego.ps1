@@ -23,6 +23,8 @@ try {
             Write-Output "worker iniciado (pid $($p.Id)). Acompanhe: .\sossego.ps1 status"
         }
         "status"    { uv run python -m coleta.admin status }
+        "migrar"    { uv run python -m db.migrar }
+        "historico" { uv run python -m coleta.historico }
         "orcamento" { uv run python -m coleta.admin orcamento }
         "parar"     { uv run python -m coleta.admin parar }
         "retomar"   { uv run python -m coleta.admin retomar }
