@@ -1,7 +1,7 @@
 # No Windows sem make, use o equivalente: .\sossego.ps1 <alvo>
 PY = cd backend && uv run python
 
-.PHONY: test dry-run coletar worker orcamento parar retomar
+.PHONY: test dry-run coletar worker orcamento parar pausar retomar desligar ligar
 
 test:
 	cd backend && uv run pytest -q
@@ -18,8 +18,15 @@ worker:
 orcamento:
 	$(PY) -m coleta.admin orcamento
 
-parar:
-	$(PY) -m coleta.admin parar
+parar pausar:
+	$(PY) -m coleta.admin pausar
 
 retomar:
 	$(PY) -m coleta.admin retomar
+
+# Só a flag; encerrar e subir o processo é no .\sossego.ps1 desligar / ligar.
+desligar:
+	$(PY) -m coleta.admin desligar
+
+ligar:
+	$(PY) -m coleta.admin ligar

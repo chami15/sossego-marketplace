@@ -48,7 +48,9 @@ Windows sem make: `.\sossego.ps1 <alvo>` faz o mesmo que `make <alvo>`.
 | `make coletar` | uma rodada de coleta |
 | `make worker` | coleta contínua, espalhada ao longo do período de cada loja |
 | `make orcamento` | requisições por loja (1 h / 24 h) e estado do breaker |
-| `make parar` / `make retomar` | kill switch (cria/remove `dados/PARAR`) |
+| `.\sossego.ps1 pausar` / `retomar` | worker **vivo**, mas nenhuma requisição sai (cria/remove `dados\PARAR`; `parar` = alias) |
+| `.\sossego.ps1 desligar` | grava `dados\DESLIGADO` e encerra o worker; a tarefa agendada (15 min, boot, logon) sobe e sai na hora |
+| `.\sossego.ps1 ligar` | remove `dados\DESLIGADO` e dispara a tarefa (sobe em até 15 min se o disparo falhar) |
 | `.\sossego.ps1 religar <loja>` | religa loja desligada pelo breaker |
 | `.\sossego.ps1 status` | worker vivo? última coleta ok por loja; bloqueio × molde quebrado |
 | `docker compose up -d db` | Postgres 16 em `127.0.0.1:5434` (a 5433 é de outro Postgres) |
@@ -60,6 +62,11 @@ Windows sem make: `.\sossego.ps1 <alvo>` faz o mesmo que `make <alvo>`.
 desta pasta: checkout aqui não muda o que roda. `.env` e `dados\` continuam
 sendo os daqui (`SOSSEGO_RAIZ_PRINCIPAL`). A `vigia.toml` do worker é a do
 commit fixo: alvo novo só vale depois de commit + `atualizar-worker`.
+
+**Pausar e desligar a pedido do dono:** nenhum desses comandos precisa de
+admin nem apaga dados (bruto, sqlite, Postgres ficam intactos). "Pausa a
+coleta" = `pausar`; "desliga o worker" = `desligar`; o contrário é
+`retomar` / `ligar`. Depois, conferir com `.\sossego.ps1 status`.
 
 Testes de banco usam `sossego_test`, recriado a cada sessão: o Postgres precisa estar de pé.
 

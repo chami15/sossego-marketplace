@@ -1,6 +1,6 @@
 # Equivalente ao Makefile para Windows sem make.
 # Uso: .\sossego.ps1 test | dry-run | coletar | worker | atualizar-worker [ref] | status | orcamento
-#                    | parar | retomar | religar <loja> | migrar | historico
+#                    | pausar | retomar | desligar | ligar | religar <loja> | migrar | historico
 param([Parameter(Position = 0)][string]$alvo = "test", [Parameter(Position = 1)][string]$arg)
 
 $backend = Join-Path $PSScriptRoot "backend"
@@ -15,6 +15,7 @@ try {
         "worker" {
             # O worker roda do worktree fixo, via tarefa agendada: nunca do código
             # desta pasta (que muda a cada checkout). Saída em dados\tarefa.out.
+            if (Test-Path (Join-Path $dados "DESLIGADO")) { Write-Output "worker DESLIGADO: use .\sossego.ps1 ligar"; return }
             Start-ScheduledTask -TaskName "Sossego Worker"
             Write-Output "tarefa disparada (se já houver worker vivo, o lock faz a nova sair). Acompanhe: .\sossego.ps1 status"
         }
@@ -49,6 +50,10 @@ try {
                 git tag -d $tag | Out-Null
                 throw "testes falharam no worktree: worker continua no commit anterior ($anterior)."
             }
+            if (Test-Path (Join-Path $dados "DESLIGADO")) {
+                Write-Output "worktree em $tag ($($commit.Substring(0,7))). Worker DESLIGADO: não reiniciei. Suba com .\sossego.ps1 ligar"
+                return
+            }
             # Reinicia: mata o worker atual (pid do batimento) e dispara a tarefa.
             $bat = Join-Path $dados "worker.json"
             if (Test-Path $bat) {
@@ -63,8 +68,29 @@ try {
         "migrar"    { uv run python -m db.migrar }
         "historico" { uv run python -m coleta.historico }
         "orcamento" { uv run python -m coleta.admin orcamento }
-        "parar"     { uv run python -m coleta.admin parar }
+        # pausar/retomar: worker vivo, nenhuma requisição (dados\PARAR).
+        { $_ -in "pausar", "parar" } { uv run python -m coleta.admin pausar }
         "retomar"   { uv run python -m coleta.admin retomar }
+        # desligar/ligar: flag dados\DESLIGADO + processo encerrado. Com a flag, a
+        # tarefa agendada (15 min, boot, logon) sobe e sai na hora. Nada é apagado.
+        "desligar" {
+            uv run python -m coleta.admin desligar
+            # Só o worker, pela linha de comando: nunca por PID solto (pode ter sido reaproveitado).
+            $procs = @(Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+                Where-Object { $_.CommandLine -match 'coleta\.vigiar' -and $_.CommandLine -match '--continuo' })
+            foreach ($p in $procs) { Stop-Process -Id $p.ProcessId -Force; Write-Output "worker encerrado (pid $($p.ProcessId))" }
+            if ($procs.Count -eq 0) { Write-Output "nenhum worker rodando" }
+            Remove-Item (Join-Path $dados "worker.json") -ErrorAction SilentlyContinue
+        }
+        "ligar" {
+            uv run python -m coleta.admin ligar
+            try {
+                Start-ScheduledTask -TaskName "Sossego Worker" -ErrorAction Stop
+                Write-Output "tarefa disparada. Acompanhe: .\sossego.ps1 status"
+            } catch {
+                Write-Output "não consegui disparar a tarefa ($($_.Exception.Message)); ela sobe sozinha em até 15 min."
+            }
+        }
         "religar"   { uv run python -m coleta.admin religar $arg }
         default     { Write-Output "alvo desconhecido: $alvo" }
     }
