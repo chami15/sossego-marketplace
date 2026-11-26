@@ -55,10 +55,10 @@ LOJAS: dict[str, Loja] = {
              lambda t: f"https://www.rihappy.com.br/api/catalog_system/pub/products/search?ft={quote_plus(t)}&_from=0&_to=19",
              60, frozenset({"tabuleiro"})),
         # robots.txt proíbe /busca/*? (com query); /busca/<termo-com-hifens> é permitido.
+        # Recon 26/11 19h25 ok (docs/fontes/kabum.md); ligado pelo dono no mesmo dia.
         Loja("kabum", "Kabum", ("kabum.com.br",),
              lambda t: f"https://www.kabum.com.br/busca/{_slug_ml(t)}",
-             120, frozenset({"eletronicos"}), ativa=False,
-             motivo_inativa="em avaliação: recon aguardando aprovação do dono"),
+             120, frozenset({"eletronicos"}), verificada=True),
         Loja("ludopedia", "Ludopedia", ("ludopedia.com.br",),
              lambda t: f"https://www.ludopedia.com.br/search?search={quote_plus(t)}", 60,
              frozenset({"tabuleiro"}), verificada=True),

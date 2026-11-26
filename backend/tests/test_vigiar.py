@@ -24,12 +24,28 @@ def test_loja_inativa_fica_fora_do_plano_ate_por_url_direta():
     assert "magalu" not in {x.loja for x in t}
 
 
-def test_recon_inclui_so_loja_em_avaliacao_citada():
+def test_recon_inclui_so_loja_em_avaliacao_citada(monkeypatch):
+    import dataclasses
+
+    import coleta.lojas_mvp as lm
+
+    # Kabum já foi aprovado; a regra continua valendo para a próxima loja em avaliação.
+    avaliar = dataclasses.replace(lm.LOJAS["kabum"], ativa=False, motivo_inativa="em avaliação: teste")
+    monkeypatch.setitem(lm.LOJAS, "kabum", avaliar)
     alvos = [{"termo": "ps5"}]
     assert "kabum" not in {x.loja for x in planejar(alvos)}
     t = planejar(alvos, lojas=["kabum", "magalu"], recon=True)
     assert {x.loja for x in t} == {"kabum"}  # magalu está inativa por bloqueio, não em avaliação
     assert t[0].url == "https://www.kabum.com.br/busca/ps5"
+
+
+def test_kabum_ativo_so_com_eletronicos_a_cada_120_min():
+    from coleta.vigiar import periodo_min
+
+    alvos = [{"termo": "nintendo switch 2", "categoria": "eletronicos"}, {"termo": "dixit", "categoria": "tabuleiro"}]
+    urls = [x.url for x in planejar(alvos) if x.loja == "kabum"]
+    assert urls == ["https://www.kabum.com.br/busca/nintendo-switch-2"]
+    assert periodo_min("kabum") == 120
 
 
 def test_ml_nunca_planeja_html_so_api_oficial():
@@ -110,3 +126,27 @@ def test_validador_de_busca_json_vtex():
 def test_validador_ignora_maiusculas_e_acentos(termo, pagina):
     corpo = b"x" * 20_000 + pagina.encode("utf-8")
     assert validador_busca(termo)(Resposta(200, {}, corpo, "u"))
+
+
+async def test_rodada_chama_gancho_no_fim_mesmo_interrompida(monkeypatch):
+    import random
+    from types import SimpleNamespace
+
+    import coleta.vigiar as v
+
+    feitas, ganchos = [], []
+
+    async def falsa(cliente, t, token_ml=None):
+        feitas.append(t.url)
+        cliente.estado.pausa = 10**12  # breaker abre depois da 1ª
+        return "ok"
+
+    async def gancho(loja):
+        ganchos.append(loja)
+
+    estado = SimpleNamespace(pausa=0)
+    estado.breaker = lambda loja: SimpleNamespace(desligada=False, pausada_ate=estado.pausa, motivo="x")
+    monkeypatch.setattr(v, "executar_tarefa", falsa)
+    ts = [v.Tarefa("amazon", f"https://www.amazon.com.br/s?k={i}", "busca", str(i)) for i in range(3)]
+    await v.rodada_da_loja(SimpleNamespace(estado=estado), "amazon", ts, 0, random.Random(1), apos=gancho)
+    assert len(feitas) == 1 and ganchos == ["amazon"]
