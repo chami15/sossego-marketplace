@@ -1,0 +1,45 @@
+# Lista de vigia: o que o coletor recoleta periodicamente.
+#
+# Cada [[alvo]] é um termo de busca (com categoria, que decide em quais lojas
+# buscar) ou uma URL direta de anúncio. A página de BUSCA já traz o preço de
+# dezenas de anúncios numa única requisição, então vigiar por termo é o modo
+# mais leve para as lojas. URL direta é para quando você quer um anúncio exato.
+#
+# Adicionar: python -m coleta.vigiar --adicionar "air fryer" --categoria eletronicos
+# Categorias do MVP: eletronicos, tabuleiro
+
+[[alvo]]
+termo = "ps5"
+categoria = "eletronicos"
+
+[[alvo]]
+termo = "jogo nintendo switch"
+categoria = "eletronicos"
+
+[[alvo]]
+termo = "nintendo switch 2"
+categoria = "eletronicos"
+
+[[alvo]]
+termo = "notebook 16gb ram"
+categoria = "eletronicos"
+
+[[alvo]]
+termo = "macbook"
+categoria = "eletronicos"
+
+[[alvo]]
+termo = "teclado"
+categoria = "eletronicos"
+
+[[alvo]]
+termo = "mouse"
+categoria = "eletronicos"
+
+[[alvo]]
+termo = "dixit"
+categoria = "tabuleiro"
+
+[[alvo]]
+termo = "jogo ito"
+categoria = "tabuleiro"
