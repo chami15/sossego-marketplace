@@ -72,6 +72,13 @@ class ConfigColeta:
         )
 
 
+def database_url(teste: bool = False) -> str:
+    v = _valores()
+    if teste:
+        return v.get("SOSSEGO_DATABASE_URL_TESTE", "postgresql://sossego:sossego@127.0.0.1:5434/sossego_test")
+    return v.get("SOSSEGO_DATABASE_URL", "postgresql://sossego:sossego@127.0.0.1:5434/sossego")
+
+
 def coleta_pausada() -> bool:
     """Kill switch: relê .env e ambiente a cada chamada."""
     return _bool(_valores().get("SOSSEGO_COLETA_PAUSADA"))

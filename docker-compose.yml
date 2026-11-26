@@ -1,0 +1,25 @@
+# Fundação mínima (pré-Black Friday): só o banco. api, worker-em-container,
+# web e adminer entram depois da BF. O worker de coleta roda no host (Windows)
+# para usar o IP residencial e o estado local em dados/.
+services:
+  db:
+    image: postgres:16
+    container_name: sossego-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sossego
+      # Senha local de desenvolvimento; o banco só escuta em 127.0.0.1.
+      POSTGRES_PASSWORD: ${SOSSEGO_DB_SENHA:-sossego}
+      POSTGRES_DB: sossego
+    ports:
+      - "127.0.0.1:5434:5432"  # 5433 já é de um Postgres nativo nesta máquina
+    volumes:
+      - sossego-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sossego -d sossego"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  sossego-pg:
