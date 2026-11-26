@@ -1,0 +1,22 @@
+# Segredos
+.env
+
+# Dados coletados (landing zone bruta, estado da coleta, logs): ficam só na máquina
+dados/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+
+# Editores/SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
