@@ -1,5 +1,7 @@
 import shutil
 
+import pytest
+
 from db.migrar import migrar
 
 
@@ -53,3 +55,10 @@ def test_seeds_trazem_as_26_lojas_do_onboarding_e_as_categorias(banco):
         assert c.execute("SELECT count(*) FROM loja").fetchone()[0] == 26
         assert c.execute("SELECT count(*) FROM loja WHERE icone IS NULL").fetchone()[0] == 0
         assert c.execute("SELECT count(*) FROM categoria").fetchone()[0] >= 10
+
+
+def test_recriar_recusa_o_banco_principal():
+    from db.recriar import recriar
+
+    with pytest.raises(ValueError, match="recuso"):
+        recriar("postgresql://sossego:sossego@127.0.0.1:5434/sossego")
