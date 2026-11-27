@@ -40,6 +40,14 @@
 ## Frontend
 - Ícones das lojas: o robots.txt do Google proíbe `/s2` (favicons). Escolher
   outra fonte, ou ficar com os monogramas (`docs/fontes/icones.md`).
+- Imagens dos produtos: a URL é do CDN da loja (ex.: `images.kabum.com.br`).
+  Exibir = o navegador do dono pedindo à loja a cada tela. Desligado; no lugar,
+  o ícone da categoria. `VITE_IMAGENS_DAS_LOJAS=sim` liga. Alternativa: baixar
+  uma vez pelo `ClienteEducado` e servir local. Decisão do dono.
+- Filtro "só com estoque" (Tela 2 do prompt) não entrou: o card já exige
+  oferta em estoque vista nas últimas 48 h, então o filtro não mudaria nada.
+- Situação das lojas na busca é a da coleta (`/saude`), não um progresso ao
+  vivo: a busca lê só o histórico (ADR 003), nenhuma loja é consultada.
 
 ## Vigia
 - Kabum "jogos ps5" (27/11 20:03): dos 10 primeiros, só 1 é jogo (GTA VI);

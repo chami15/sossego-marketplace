@@ -74,14 +74,35 @@ Atualizado em 27/11/2026 (Black Friday).
     Fraunces nos destaques e Literata no corpo, self-hosted (`@fontsource`).
     Cantos de 2px, sem pílula/vidro/blur/gradiente; contraste AA, foco visível,
     teclado e `prefers-reduced-motion`.
-  - Componentes: Botao, Chip, BarraProgresso, Aviso, CampoTags, IconeCategoria
-    (traço próprio), IconeLoja (arquivo local; monograma enquanto não há ícone).
+  - Componentes: Botao, Escolha (rádio que preenche / caixa só no múltiplo),
+    BarraProgresso, Aviso, CampoTags, IconeCategoria (Lucide), IconeLoja (monograma).
+  - Refino (pedido do dono): tela dividida 40/60 com painel azul, índice de passos
+    e resumo ao vivo; grades de 5/4 colunas; barra de ações fixa com "Máximo 3";
+    busca de loja; celular com cabeçalho compacto e 2 colunas.
   - Onboarding em 3 passos com limite de 3 (aviso, sem tirar a mais antiga),
     termos em tags, "Não tenho preferência", linha da LGPD, erro que mantém as
     escolhas, "refazer preferências" no mesmo perfil. Termos não disparam coleta.
   - e2e (Playwright) com a API real num banco só dele (`sossego_e2e`, recriado
     por `db/recriar.py`, que recusa bancos que não terminem em `_test`/`_e2e`).
   - Prints em `docs/prints/fase-06/` (1440 e 390 px).
+- **Fase 7 (27/11, aguardando aprovação dos prints)** — `fase/07-inicio-e-busca`
+  - Home: capa azul com "O que você quer comprar hoje?" e busca com autocomplete
+    das buscas recentes (só neste navegador); seções De olho / Pra você / Caiu de
+    preço, sem repetir produto entre elas; chips de categoria.
+  - Card: imagem 1:1 (ícone da categoria no lugar, ver backlog), título em 2
+    linhas, menor preço grande em Fraunces, Pix quando menor, loja, "+N lojas a
+    partir de", selo de variação com seta e % contra o nosso histórico. O card
+    inteiro é o link. Dinheiro formatado da string decimal, sem float.
+  - Busca: ordenação (relevância, preço, Pix, queda) e filtros (loja, faixa de
+    preço) no topo, na URL; situação de cada loja coletada (de `/saude`); vazio
+    que explica de onde vêm os preços.
+  - API: `GET /busca?categoria=` (sem termo, lista a categoria; não entra no
+    `busca_log`).
+  - Produto: tela provisória com as ofertas e "Ver na loja" (a página é a Fase 8).
+  - e2e: `db/semente_e2e.py` grava 9 anúncios fictícios no `sossego_e2e`; 6
+    testes de busca → card → produto, filtros, home, vazio, autocomplete e
+    regressão de largura no celular.
+  - Prints em `docs/prints/fase-07/` (1440 e 390 px).
 
 ### Ocorrências da Black Friday (27/11)
 
@@ -97,6 +118,6 @@ Atualizado em 27/11/2026 (Black Friday).
 
 ## Falta
 
-- Fases 7 a 10 (telas, mais lojas, polimento).
-- Ícones das lojas: baixar uma vez, com o "pode" do dono (hoje são monogramas).
+- Fases 8 a 10 (produto, mais lojas, polimento).
+- Ícones das lojas: o robots do Google proíbe os favicons; fonte a decidir.
 - Ajustes pequenos e pendências de loja: `docs/backlog.md`.
