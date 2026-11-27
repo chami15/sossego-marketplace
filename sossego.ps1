@@ -1,4 +1,4 @@
-# Equivalente ao Makefile para Windows sem make.
+﻿# Equivalente ao Makefile para Windows sem make.
 # Uso: .\sossego.ps1 test | dry-run | coletar | worker | atualizar-worker [ref] | status | orcamento
 #                    | pausar | retomar | desligar | ligar | religar <loja> | migrar | historico
 param([Parameter(Position = 0)][string]$alvo = "test", [Parameter(Position = 1)][string]$arg)
