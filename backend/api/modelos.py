@@ -193,3 +193,44 @@ class Saude(BaseModel):
     worker_vivo: bool
     worker_batimento_em: datetime | None
     lojas: list[SaudeLoja]
+
+
+Porcento = Annotated[Decimal, Field(ge=0, le=100, max_digits=7, decimal_places=4)]
+
+
+class SimulacaoEntrada(BaseModel):
+    """Percentuais em % (1.07 = 1,07%). Sem `rendimento_mensal_pct`, usa o CDI
+    salvo do Banco Central × `pct_cdi`, com IR regressivo pelo prazo."""
+    preco_avista: Dinheiro = Field(description="Pix/boleto")
+    preco_cartao: Dinheiro
+    parcelas: int = Field(ge=1, le=24, description="máximo sem juros, ou o nº do plano com juros")
+    valor_parcela: Dinheiro | None = Field(None, description="só para parcelado com juros")
+    rendimento_mensal_pct: Porcento | None = Field(None, description="líquido; vence o CDI")
+    pct_cdi: Annotated[Decimal, Field(gt=0, le=300)] = Decimal(100)
+    cashback_pct: Porcento = Decimal(0)
+    primeira_parcela: Literal["30d", "ato"] = "30d"
+
+
+class OpcaoPagamento(BaseModel):
+    tipo: Literal["pix", "parcelado"]
+    parcelas: int | None
+    valor_parcela: Decimal | None
+    total: Decimal
+    valor_presente: Decimal
+    cashback: Decimal
+    custo_efetivo: Decimal = Field(description="valor de hoje: VP das parcelas − cashback")
+    rendimento_mensal_pct: Decimal | None
+    ir_pct: Decimal | None
+    desconto_equilibrio_pct: Decimal | None = Field(description="desconto mínimo no Pix para valer a pena")
+    juros_mensal_pct: Decimal | None
+
+
+class Simulacao(BaseModel):
+    recomendacao: str
+    melhor: OpcaoPagamento
+    opcoes: list[OpcaoPagamento] = Field(description="ordenadas pelo custo efetivo")
+    desconto_pix_pct: Decimal
+    economia: Decimal = Field(description="melhor × 2ª opção, em reais de hoje")
+    rendimento_fonte: Literal["informado", "cdi_bcb"]
+    cdi_anual_pct: Decimal | None
+    cdi_data: date | None = Field(description="data da taxa usada; pode ser antiga se o BCB estiver fora")

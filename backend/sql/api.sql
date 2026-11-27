@@ -224,3 +224,6 @@ ORDER BY v.produto_id, v.perfil_id;
 SELECT l.slug, max(e.fim) AS em
 FROM coleta_execucao e JOIN loja l ON l.id = e.loja_id
 WHERE e.status = 'ok' GROUP BY l.slug;
+
+-- name: ultima_taxa
+SELECT data, cdi_anual FROM taxa_referencia ORDER BY data DESC LIMIT 1;

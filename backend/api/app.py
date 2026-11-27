@@ -320,11 +320,49 @@ def criar_app(url_banco: str | None = None, dir_dados: Path | None = None) -> Fa
             categorias=sorted(todas, key=lambda c: (ordem_cat.get(c.slug, len(cats)), c.nome)),
         )
 
+    @app.post(f"{v1}/pagamento/simular", response_model=m.Simulacao, tags=["pagamento"])
+    def simular_pagamento(e: m.SimulacaoEntrada, conn=Conn):
+        return _simular(conn, e)
+
     @app.get(f"{v1}/saude", response_model=m.Saude, tags=["operação"])
     def saude(request: Request):
         return _saude(request.app)
 
     return app
+
+
+def _pct_ou_none(x):
+    return None if x is None else (x * 100).quantize(Decimal("0.01"), ROUND_HALF_UP)
+
+
+def _simular(conn, e: m.SimulacaoEntrada) -> m.Simulacao:
+    from pagamento.calculo import simular
+
+    cdi = data = None
+    if e.rendimento_mensal_pct is None:
+        taxa = conn.execute(Q["ultima_taxa"]).fetchone()
+        if taxa is None:
+            raise HTTPException(503, "sem taxa do Banco Central salva; informe rendimento_mensal_pct")
+        cdi, data = taxa["cdi_anual"], taxa["data"]
+    try:
+        s = simular(preco_avista=e.preco_avista, preco_cartao=e.preco_cartao, parcelas=e.parcelas,
+                    valor_parcela=e.valor_parcela,
+                    taxa_mensal=None if e.rendimento_mensal_pct is None else e.rendimento_mensal_pct / 100,
+                    cdi_anual=None if cdi is None else cdi / 100, pct_cdi=e.pct_cdi / 100,
+                    cashback=e.cashback_pct / 100, no_ato=e.primeira_parcela == "ato")
+    except ValueError as erro:
+        raise HTTPException(422, str(erro))
+
+    def opcao(o):
+        return m.OpcaoPagamento(
+            tipo=o.tipo, parcelas=o.parcelas, valor_parcela=o.valor_parcela, total=o.total,
+            valor_presente=o.valor_presente, cashback=o.cashback, custo_efetivo=o.custo_efetivo,
+            rendimento_mensal_pct=_pct_ou_none(o.taxa_mensal), ir_pct=_pct_ou_none(o.ir),
+            desconto_equilibrio_pct=_pct_ou_none(o.desconto_equilibrio), juros_mensal_pct=_pct_ou_none(o.juros_mensal))
+
+    return m.Simulacao(recomendacao=s.recomendacao, melhor=opcao(s.melhor), opcoes=[opcao(o) for o in s.opcoes],
+                       desconto_pix_pct=_pct_ou_none(s.desconto_pix), economia=s.economia,
+                       rendimento_fonte="informado" if cdi is None else "cdi_bcb", cdi_anual_pct=cdi, cdi_data=data)
 
 
 def _caiu(cs: dict[int, m.Card]) -> list[m.Card]:

@@ -213,7 +213,7 @@ def test_openapi_tem_as_rotas_do_contrato(api):
         "/api/v1/perfis", "/api/v1/perfis/{pid}", "/api/v1/lojas", "/api/v1/categorias", "/api/v1/busca",
         "/api/v1/produtos/{produto_id}", "/api/v1/produtos/{produto_id}/historico",
         "/api/v1/produtos/{produto_id}/parecidos", "/api/v1/inicio", "/api/v1/perfis/{pid}/vigias/{produto_id}",
-        "/api/v1/vigias/quedas", "/api/v1/saude"}
+        "/api/v1/vigias/quedas", "/api/v1/saude", "/api/v1/pagamento/simular"}
 
 
 def test_regressao_busca_aproximada_ignorava_plataforma_e_modelo(api, banco):
@@ -262,3 +262,34 @@ def test_regressao_jogos_no_plural_casava_fone_para_jogos(api, banco):
     associar(banco, [])
     r = api.get("/api/v1/busca", params={"q": "jogos ps5"}).json()["resultados"]
     assert r[0]["titulo"] == "Jogo Gran Turismo 7, PS5"
+
+
+# ---------- pagamento ----------
+
+def test_simular_com_rendimento_informado(api):
+    r = api.post("/api/v1/pagamento/simular", json={
+        "preco_avista": "900", "preco_cartao": "1000", "parcelas": 10, "rendimento_mensal_pct": "1.07"})
+    assert r.status_code == 200, r.text
+    s = r.json()
+    assert s["melhor"]["tipo"] == "pix" and s["recomendacao"].startswith("Pague no Pix.")
+    assert s["opcoes"][-1]["desconto_equilibrio_pct"] is not None and s["rendimento_fonte"] == "informado"
+    assert s["desconto_pix_pct"] == "10.00" and s["economia"] == "44"
+
+
+def test_simular_usa_o_ultimo_cdi_salvo_e_mostra_a_data(api, banco):
+    with psycopg.connect(banco, autocommit=True) as c:
+        c.execute("TRUNCATE taxa_referencia")
+        assert api.post("/api/v1/pagamento/simular", json={
+            "preco_avista": "1000", "preco_cartao": "1000", "parcelas": 3}).status_code == 503
+        c.execute("INSERT INTO taxa_referencia (data, cdi_anual) VALUES ('2026-11-20', 13.0), ('2026-11-26', 13.65)")
+    s = api.post("/api/v1/pagamento/simular", json={
+        "preco_avista": "1000", "preco_cartao": "1000", "parcelas": 3, "pct_cdi": "100"}).json()
+    assert (s["rendimento_fonte"], s["cdi_anual_pct"], s["cdi_data"]) == ("cdi_bcb", "13.6500", "2026-11-26")
+    assert s["melhor"]["parcelas"] == 3 and s["melhor"]["ir_pct"] == "22.50"
+
+
+def test_simular_valida_entrada(api):
+    assert api.post("/api/v1/pagamento/simular", json={
+        "preco_avista": "-1", "preco_cartao": "10", "parcelas": 1, "rendimento_mensal_pct": "1"}).status_code == 422
+    assert api.post("/api/v1/pagamento/simular", json={
+        "preco_avista": "10", "preco_cartao": "10", "parcelas": 40, "rendimento_mensal_pct": "1"}).status_code == 422
