@@ -1,6 +1,6 @@
 ﻿# Equivalente ao Makefile para Windows sem make.
 # Uso: .\sossego.ps1 test | dry-run | coletar | worker | atualizar-worker [ref] | status | orcamento
-#                    | pausar | retomar | desligar | ligar | religar <loja> | migrar | historico
+#                    | pausar | retomar | desligar | ligar | religar <loja> | migrar | historico | matching [--refazer]
 param([Parameter(Position = 0)][string]$alvo = "test", [Parameter(Position = 1)][string]$arg)
 
 $backend = Join-Path $PSScriptRoot "backend"
@@ -36,7 +36,8 @@ try {
         "atualizar-worker" {
             # Único jeito de mudar o código do worker: marca uma tag no commit
             # escolhido, põe o worktree nela, roda os testes lá e reinicia.
-            $ref = if ($arg) { $arg } else { "fase/02-coleta-e-historico" }
+            # Padrão: a branch atual (a fase em andamento).
+            $ref = if ($arg) { $arg } else { git branch --show-current }
             $wt = Join-Path (Split-Path $PSScriptRoot -Parent) "sossego-worker"
             $commit = git rev-parse --verify "$ref^{commit}"
             if ($LASTEXITCODE -ne 0) { throw "ref inexistente: $ref" }
@@ -80,6 +81,7 @@ try {
         "status"    { uv run python -m coleta.admin status }
         "migrar"    { uv run python -m db.migrar }
         "historico" { uv run python -m coleta.historico }
+        "matching"  { if ($arg) { uv run python -m matching.associar $arg } else { uv run python -m matching.associar } }
         "orcamento" { uv run python -m coleta.admin orcamento }
         # pausar/retomar: worker vivo, nenhuma requisição (dados\PARAR).
         { $_ -in "pausar", "parar" } { uv run python -m coleta.admin pausar }

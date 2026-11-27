@@ -147,3 +147,13 @@ def test_regressao_pagina_de_desafio_no_bruto_gerava_erro_a_cada_reprocesso(banc
     assert r1.erros == [] and r2.pulados == 1
     with psycopg.connect(banco) as c:
         assert c.execute("SELECT status FROM coleta_execucao").fetchall() == [("bloqueada",)]
+
+
+async def test_reprocesso_apos_rodada_tambem_associa_produto(banco, tmp_path):
+    """Fase 3: anúncio novo já sai da rodada ligado a um produto."""
+    from coleta.historico import ReprocessoAposRodada
+
+    bruto(tmp_path, 0, [produto_vtex(249.99)])
+    await ReprocessoAposRodada(banco, tmp_path, produtos=lambda: [])("ri-happy")
+    with psycopg.connect(banco) as c:
+        assert c.execute("SELECT count(*) FROM anuncio WHERE produto_id IS NULL").fetchone()[0] == 0

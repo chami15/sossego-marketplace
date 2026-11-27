@@ -140,10 +140,14 @@ class ReprocessoAposRodada:
     prova de falha: banco fora do ar não pode parar a coleta, porque o bruto
     continua sendo gravado e o próximo reprocesso recupera tudo."""
 
-    def __init__(self, url: str, dir_bruto: Path):
+    def __init__(self, url: str, dir_bruto: Path, produtos=None):
         import asyncio
 
         self.url, self.dir_bruto = url, dir_bruto
+        # Grupos [[produto]] lidos a cada rodada: a vigia.toml do worker é a do commit fixo.
+        if produtos is None:
+            from coleta.vigiar import ler_produtos as produtos
+        self.produtos = produtos
         self._trava = asyncio.Lock()
 
     async def __call__(self, loja: str) -> None:
@@ -155,6 +159,11 @@ class ReprocessoAposRodada:
                 log.info(json.dumps({"evento": "reprocesso", "apos_loja": loja, "arquivos": r.arquivos,
                                      "snapshots": r.snapshots, "sem_mudanca": r.sem_mudanca,
                                      "alertas": r.alertas, "erros": len(r.erros)}))
+                from matching.associar import associar
+
+                m = await asyncio.to_thread(associar, self.url, self.produtos())
+                log.info(json.dumps({"evento": "matching", "apos_loja": loja, "agrupados": m.agrupados,
+                                     "novos": m.novos, "manuais": m.manuais}))
             except Exception as e:  # noqa: BLE001 - de propósito: nada aqui derruba a coleta
                 log.error(json.dumps({"evento": "reprocesso_falhou", "apos_loja": loja, "erro": repr(e)[:300]}))
 
