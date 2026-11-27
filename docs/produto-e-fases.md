@@ -17,9 +17,10 @@ Atualizado em 27/11/2026 (Black Friday).
   - Contrato `Oferta` (Pydantic, Decimal), parsers Amazon/Ludopedia/VTEX.
   - Reprocessamento do bruto → anúncios e snapshots com dedupe, automático no
     fim de cada rodada do worker (falha de banco só loga; o bruto segue).
-  - Kabum no worker (eletrônicos, 120 min). Parser v4: preço vigente no
-    cartão, "de" e Pix conferidos na tela em 27/11; Pix só quando o JSON mostra
-    desconto (`docs/fontes/kabum.md`).
+  - Kabum no worker (eletrônicos, 120 min). Parser v5: preço vigente no
+    cartão, Pix de `priceWithDiscount` (conferido na tela 2x em 27/11), sem
+    juros pelo parcelado; "de" vazio, porque o da tela não está no JSON
+    (`docs/fontes/kabum.md`).
   - Worker em worktree fixo (`..\sossego-worker`), atualizado só por
     `atualizar-worker`; tarefa sem admin (logon + 15 min) via
     `conhost --headless`, sem janela. `pausar`/`retomar`, `desligar`/`ligar`.
@@ -30,16 +31,18 @@ Atualizado em 27/11/2026 (Black Friday).
 - Sem coleta de 26/11 20:00 a 27/11 15:01: PC desligado. Não recuperável.
 - 15:11: Amazon respondeu com desafio Akamai (`bm-verify`). Virou marcador de
   bloqueio; o dono desligou a Amazon até segunda 30/11 (migration 002).
-- Ri Happy: busca com espaço (`jogo ito`) dá HTTP 400; termo com espaço fora
-  da Ri Happy até confirmar a codificação. 400 em busca = molde quebrado.
-- Kabum: a oferta do PS5 989702 mudou às ~16:00; o JSON novo não mostra desconto
-  no Pix. Pendente: conferir a tela.
+- Ri Happy: busca com espaço como `+` (`jogo+ito`) dá HTTP 400; com `%20` dá
+  206 (1 requisição de teste, 16:48). Molde passou a usar `%20`. 400 em busca =
+  molde quebrado. A Ri Happy não tem o Ito: os 20 resultados são outros jogos.
+- Kabum: a oferta do PS5 989702 mudou às ~16:00 (4.599 → 4.499); a tela das
+  16:44 confirmou Pix = cartão = 4.499 e 10x sem juros. O "de" da tela (4.893,76)
+  não bate com `oldPrice` (4.649,07): parser v5 grava "de" vazio.
 
 ## Falta (depois da BF)
 
 - API, web, adminer, CI (Fase 1 completa).
-- Kabum: conferir o Pix da oferta nova (Pix = cartão no JSON) e decidir o parser.
-- Ri Happy: codificação de termo com espaço (`%20`, 1 requisição de teste) ou só `ito`.
+- Kabum: de onde vem o "de" da tela (página de produto? só com o "pode").
+- Ri Happy: tirar `jogo ito` dela (não vende o Ito) — decisão do dono.
 - Molde quebrado pausar só a URL, não a loja (debate).
 - Fechar as conexões SQLite (`Estado`): ResourceWarning nos testes, inofensivo.
 - Matching (Fase 3), calculadora (Fase 5), telas.
