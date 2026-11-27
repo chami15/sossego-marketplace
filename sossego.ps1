@@ -1,6 +1,6 @@
 ﻿# Equivalente ao Makefile para Windows sem make.
 # Uso: .\sossego.ps1 test | dry-run | coletar | worker | atualizar-worker [ref] | status | orcamento
-#                    | pausar | retomar | desligar | ligar | religar <loja> | migrar | historico | matching [--refazer]
+#                    | pausar | retomar | desligar | ligar | religar <loja> | migrar | historico | matching [--refazer] | api
 param([Parameter(Position = 0)][string]$alvo = "test", [Parameter(Position = 1)][string]$arg)
 
 $backend = Join-Path $PSScriptRoot "backend"
@@ -81,6 +81,8 @@ try {
         "status"    { uv run python -m coleta.admin status }
         "migrar"    { uv run python -m db.migrar }
         "historico" { uv run python -m coleta.historico }
+        # Só em 127.0.0.1: API de uso pessoal, sem autenticação.
+        "api"       { uv run uvicorn api.app:app --host 127.0.0.1 --port 8000 }
         "matching"  { if ($arg) { uv run python -m matching.associar $arg } else { uv run python -m matching.associar } }
         "orcamento" { uv run python -m coleta.admin orcamento }
         # pausar/retomar: worker vivo, nenhuma requisição (dados\PARAR).
