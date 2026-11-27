@@ -57,7 +57,8 @@ LOJAS: dict[str, Loja] = {
         Loja("ri-happy", "Ri Happy", ("rihappy.com.br",),
              # API pública de catálogo VTEX: JSON leve, permitida pelo robots.txt.
              lambda t: f"https://www.rihappy.com.br/api/catalog_system/pub/products/search?ft={quote_plus(t)}&_from=0&_to=19",
-             60, frozenset({"tabuleiro"}), so_uma_palavra=True),
+             # Molde verificado em 26/11 com termo de uma palavra (dixit: 206, ofertas ok).
+             60, frozenset({"tabuleiro"}), verificada=True, so_uma_palavra=True),
         # robots.txt proíbe /busca/*? (com query); /busca/<termo-com-hifens> é permitido.
         # Recon 26/11 19h25 ok (docs/fontes/kabum.md); ligado pelo dono no mesmo dia.
         Loja("kabum", "Kabum", ("kabum.com.br",),
