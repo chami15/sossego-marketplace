@@ -22,8 +22,6 @@
 - **Parser de página de produto** (depois da BF, decisão do dono em 27/11): hoje
   só a busca é lida; URL direta na `vigia.toml` não teria preço. Exige recon
   por loja + `--dry-run` + "pode".
-- **Aviso de anúncio de `[[produto]]` que sumiu da busca:** os grupos dependem
-  de o anúncio vir no topo da busca; o `status` ainda não avisa quando some.
 
 ## Produto
 - Login e conta.

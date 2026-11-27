@@ -42,7 +42,51 @@ def orcamento(cfg: ConfigColeta) -> None:
         print(f"{loja:<16}{f'{h}/{cfg.orcamento_hora}':>10}{f'{d}/{cfg.orcamento_dia}':>13}  {br}")
 
 
-def status(cfg: ConfigColeta) -> None:
+def ultima_vez_anuncios(url_banco: str, produtos: list[dict]) -> dict[tuple[str, str], float]:
+    """Última vez que cada anúncio dos grupos [[produto]] apareceu numa busca
+    (anuncio.ultima_coleta_em anda a cada aparição, mesmo sem snapshot novo). Só leitura."""
+    import psycopg
+
+    pares = {(a["loja"], a["id"]) for p in produtos for a in p["anuncios"]}
+    with psycopg.connect(url_banco, connect_timeout=3) as c:
+        linhas = c.execute(
+            "SELECT l.slug, a.id_externo, a.ultima_coleta_em FROM anuncio a JOIN loja l ON l.id = a.loja_id"
+            " WHERE l.slug = ANY(%s) AND a.id_externo = ANY(%s)",
+            (sorted({l for l, _ in pares}), sorted({i for _, i in pares}))).fetchall()
+    return {(l, i): t.timestamp() for l, i, t in linhas if (l, i) in pares}
+
+
+def linhas_grupos(produtos: list[dict], visto: dict[tuple[str, str], float],
+                  ultima_ok: dict[str, float | None], agora: float) -> tuple[list[str], list[str]]:
+    """Por grupo, a última aparição de cada anúncio na busca. Sumido = a loja seguiu
+    coletando ok por mais de 2 períodos depois da última aparição. Sem coleta da loja
+    (worker parado, loja inativa) não é sumiço: a busca nem rodou."""
+    linhas: list[str] = []
+    alertas: list[str] = []
+    for p in produtos:
+        linhas.append(p["nome"] + (" (edição a confirmar)" if p.get("edicao_a_confirmar") else ""))
+        for a in p["anuncios"]:
+            loja, id_ = a["loja"], a["id"]
+            cad = LOJAS[loja]
+            v = visto.get((loja, id_))
+            ok = ultima_ok.get(loja)
+            periodo = cad.periodo_min * 60
+            if not cad.ativa:
+                sit = "loja inativa"
+            elif v is None:
+                sit = ">>> nunca visto na busca <<<"
+                alertas.append(f"{loja} {id_} ({p['nome']}): nunca apareceu na busca. id certo na vigia.toml?")
+            elif ok is not None and ok - v > 2 * periodo:
+                n = int((ok - v) // periodo)
+                sit = f">>> SUMIU DA BUSCA <<< ({n} rodadas sem aparecer)"
+                alertas.append(f"{loja} {id_} ({p['nome']}): fora da busca há {n} rodadas. Saiu do topo ou do catálogo?")
+            else:
+                sit = "ok"
+            linhas.append(f"  {loja:<12}{id_:<14}{_hora(v) if v else '-':>14}  {sit}")
+    return linhas, alertas
+
+
+def status(cfg: ConfigColeta, produtos: list[dict] | None = None, url_banco: str | None = None) -> None:
     import json
 
     agora = time.time()
@@ -91,6 +135,18 @@ def status(cfg: ConfigColeta) -> None:
             sit = "ok"
         print(f"{loja:<16}{_hora(ok) if ok else '-':>14}{estado.enviadas_desde(loja, agora - 3600):>5}"
               f"{estado.enviadas_desde(loja, agora - 86400):>6}  {sit}")
+    if produtos:
+        print(f"\n{'produto / loja':<26}{'última vez':>14}  situação")
+        try:
+            visto = ultima_vez_anuncios(url_banco, produtos)
+        except Exception as e:  # banco fora do ar não pode derrubar o status
+            print(f"  (banco indisponível: {type(e).__name__}; grupos sem dado)")
+        else:
+            ultima_ok = {a["loja"]: estado.ultima_por_classe(a["loja"], "ok")
+                         for p in produtos for a in p["anuncios"]}
+            linhas, extra = linhas_grupos(produtos, visto, ultima_ok, agora)
+            print("\n".join(linhas))
+            alertas += extra
     if alertas:
         print("\nATENÇÃO:")
         for a in alertas:
@@ -102,7 +158,10 @@ def main(argv: list[str]) -> int:
     cmd = argv[0] if argv else "orcamento"
     parar = cfg.dir_dados / "PARAR"
     if cmd == "status":
-        status(cfg)
+        from config import database_url
+        from coleta.vigiar import ler_produtos
+
+        status(cfg, ler_produtos(), database_url())
     elif cmd == "orcamento":
         orcamento(cfg)
     elif cmd in ("pausar", "parar"):

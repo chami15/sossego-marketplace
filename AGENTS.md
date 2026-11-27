@@ -52,7 +52,7 @@ Windows sem make: `.\sossego.ps1 <alvo>` faz o mesmo que `make <alvo>`.
 | `.\sossego.ps1 desligar` | grava `dados\DESLIGADO` e encerra o worker; a tarefa agendada (15 min, boot, logon) sobe e sai na hora |
 | `.\sossego.ps1 ligar` | remove `dados\DESLIGADO` e dispara a tarefa (sobe em até 15 min se o disparo falhar) |
 | `.\sossego.ps1 religar <loja>` | religa loja desligada pelo breaker |
-| `.\sossego.ps1 status` | worker vivo? última coleta ok por loja; bloqueio × molde quebrado |
+| `.\sossego.ps1 status` | worker vivo? última coleta ok por loja; bloqueio × molde quebrado; grupos `[[produto]]` (anúncio > 2 rodadas fora da busca) |
 | `docker compose up -d db` | Postgres 16 em `127.0.0.1:5434` (a 5433 é de outro Postgres) |
 | `.\sossego.ps1 migrar` | aplica `backend/db/migrations/NNN_*.sql` pendentes |
 | `.\sossego.ps1 historico` | bruto → anúncios + snapshots (idempotente, com dedupe); o worker já roda isso no fim de cada rodada |
