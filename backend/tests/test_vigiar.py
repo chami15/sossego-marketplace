@@ -199,3 +199,25 @@ def test_alvo_com_loja_desconhecida_falha_alto():
     # Erro de digitação na vigia.toml não pode virar alvo que nunca é coletado.
     with pytest.raises(ValueError, match="ludopdia"):
         planejar([{"termo": "ito", "categoria": "tabuleiro", "lojas": ["ludopdia"]}])
+
+
+def test_produtos_da_vigia_sao_anuncios_de_lojas_conhecidas_sem_requisicao():
+    """27/11: grupos [[produto]] são anúncios já vistos na busca (semente do matching).
+    Não viram tarefa: nenhuma requisição nova."""
+    from coleta.vigiar import ARQUIVO_VIGIA, ler_alvos, ler_produtos
+    produtos = ler_produtos(ARQUIVO_VIGIA)
+    assert {p["nome"] for p in produtos} >= {"Dixit (base)", "PS5 Digital + Astro Bot e GT7",
+                                             "Switch 2 + EA FC 27"}
+    dixit = next(p for p in produtos if p["nome"] == "Dixit (base)")
+    assert dixit["edicao_a_confirmar"] is True
+    assert {(a["loja"], a["id"]) for a in dixit["anuncios"]} == {("ludopedia", "606"), ("ri-happy", "1003181835")}
+    urls = {t.url for t in planejar(ler_alvos(ARQUIVO_VIGIA))}
+    assert not any("/produto/" in u or "/dp/" in u or "/jogo/" in u for u in urls)
+
+
+def test_produto_com_loja_desconhecida_falha_alto(tmp_path):
+    from coleta.vigiar import ler_produtos
+    f = tmp_path / "vigia.toml"
+    f.write_text('[[produto]]\nnome = "x"\nanuncios = [{loja = "kabun", id = "1"}]\n', encoding="utf-8")
+    with pytest.raises(ValueError, match="kabun"):
+        ler_produtos(f)

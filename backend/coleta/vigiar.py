@@ -60,6 +60,18 @@ def ler_alvos(caminho: Path = ARQUIVO_VIGIA) -> list[dict]:
     return tomllib.loads(caminho.read_text(encoding="utf-8")).get("alvo", [])
 
 
+def ler_produtos(caminho: Path = ARQUIVO_VIGIA) -> list[dict]:
+    """Grupos [[produto]]: anúncios que já vêm na busca, agrupados à mão como o
+    mesmo produto (semente do matching). Não geram tarefa nem requisição."""
+    if not caminho.exists():
+        return []
+    produtos = tomllib.loads(caminho.read_text(encoding="utf-8")).get("produto", [])
+    for p in produtos:
+        if erradas := sorted({a["loja"] for a in p["anuncios"]} - LOJAS.keys()):
+            raise ValueError(f"vigia.toml: loja desconhecida em {p['nome']!r}: {erradas}")
+    return produtos
+
+
 def _liberada(slug: str, lojas: list[str] | None, recon: bool) -> bool:
     l = LOJAS.get(slug)
     if l is None or l.ativa:

@@ -25,6 +25,17 @@ categoria = "eletronicos"
 termo = "notebook 16gb ram"
 categoria = "eletronicos"
 
+# DualSense e jogos: Amazon só coleta quando voltar (desligada até 30/11).
+[[alvo]]
+termo = "controle ps5"
+categoria = "eletronicos"
+lojas = ["kabum", "amazon"]
+
+[[alvo]]
+termo = "jogos ps5"
+categoria = "eletronicos"
+lojas = ["kabum", "amazon"]
+
 [[alvo]]
 termo = "macbook"
 categoria = "eletronicos"
@@ -40,3 +51,30 @@ categoria = "tabuleiro"
 termo = "ito"
 categoria = "tabuleiro"
 lojas = ["ludopedia"]
+
+# Produtos: anúncios que já vêm nas buscas acima, agrupados à mão como o mesmo
+# produto (semente do matching da Fase 3). Não geram requisição. id = id_externo
+# do anúncio (ASIN, código Kabum, productId VTEX, id do jogo na Ludopedia).
+# Conferidos pelo título/descrição/modelo em 27/11; nenhum par tem EAN dos dois lados.
+
+[[produto]]
+nome = "Dixit (base)"
+edicao_a_confirmar = true  # só a Ri Happy traz EAN (3558387010060); Ludopedia é o jogo 606 (2008)
+anuncios = [
+  { loja = "ludopedia", id = "606" },
+  { loja = "ri-happy", id = "1003181835" },
+]
+
+[[produto]]
+nome = "PS5 Digital + Astro Bot e GT7"
+anuncios = [
+  { loja = "amazon", id = "B0FPGF9J2J" },
+  { loja = "kabum", id = "989702" },  # descrição cita ASTRO BOT e Gran Turismo 7
+]
+
+[[produto]]
+nome = "Switch 2 + EA FC 27"
+anuncios = [
+  { loja = "amazon", id = "B0HKYBZRN1" },
+  { loja = "kabum", id = "1076479" },  # modelo NT000088NSW
+]
