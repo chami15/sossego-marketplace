@@ -42,9 +42,24 @@ A oferta mudou às ~16:00 (`offer.startsAt`). No bruto das 16:15 o 989702 veio c
 `offer.price` 4.499 = `offer.priceWithDiscount` 4.499 (sem desconto no JSON),
 `oldPrice` 4.649,07 e `discountPercentage` 0. A tela de antes das 16h mostrava
 Pix 4.274,05 e "de" 4.893,76. Ou a oferta nova não tem desconto no Pix, ou o
-desconto é calculado na página. **Pendente: o dono conferir a tela depois das 16h.**
+desconto é calculado na página.
 
-## O que o parser grava (versão 4, desde 27/11)
+**Tela do dono às 16:44:** "de" 4.893,76; Pix 4.499,00; 10x de 449,90 sem juros
+(4.499,00); "36x no NuPay" é financiamento de terceiro, ignorado. Bruto mais
+próximo (16:15): `offer.priceWithDiscount` 4.499 → **Pix do JSON confiável**,
+o desconto de 5% só acabou. O "de" 4.893,76 **não aparece em nenhum lugar do
+bruto** (`oldPrice` = `price` da raiz = 4.649,07); em 26/11 `oldPrice` coincidia
+com a tela só porque era igual ao `price` da raiz. Conclusão: `oldPrice` não é o
+"de" da tela.
+
+## O que o parser grava (versão 5, desde 27/11 16:50)
+
+- `preco` = vigente no cartão (conferido com o parcelado).
+- `preco_pix` = `priceWithDiscount` (da oferta ativa ou da raiz), também quando igual ao cartão.
+- `parcelas_sem_juros` = n do `maxInstallment`: n × parcela = vigente, então sem juros.
+- `preco_de` = **None**: a fonte do "de" da tela não está no JSON da busca.
+
+## Versão 4 (histórico)
 
 - `preco` = preço vigente no cartão (`offer.price` com oferta ativa, senão
   `price`), **só se** o parcelado de `maxInstallment` bater com ele (até

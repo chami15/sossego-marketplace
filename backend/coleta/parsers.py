@@ -18,7 +18,7 @@ from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
 from coleta.base import Oferta, brl, dec
 
-PARSER_VERSAO = {"amazon": "1", "ludopedia": "1", "ri-happy": "1", "kabum": "4"}
+PARSER_VERSAO = {"amazon": "1", "ludopedia": "1", "ri-happy": "1", "kabum": "5"}
 
 
 class SemOfertas(Exception):
@@ -145,10 +145,11 @@ log = logging.getLogger("sossego.parsers")
 
 
 def kabum(corpo: str, coletado_em: datetime) -> list[Oferta]:
-    """Mapeamento conferido na tela pelo dono em 27/11 (docs/fontes/kabum.md):
-    total no cartão = parcelamento literal (e tem que bater com o preço vigente);
-    Pix = priceWithDiscount da oferta ativa (ou da raiz); "de" = oldPrice.
-    Sem juros continua desconhecido (None)."""
+    """Mapeamento conferido na tela pelo dono em 27/11, antes e depois das 16h
+    (docs/fontes/kabum.md): total no cartão = parcelamento literal (tem que bater
+    com o preço vigente, logo é sem juros); Pix = priceWithDiscount da oferta ativa
+    (ou da raiz), inclusive quando igual ao cartão. "de" = None: oldPrice bateu com
+    a tela em 26/11 e não em 27/11 16:44, e o valor da tela não está no JSON."""
     m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', corpo, re.S)
     if not m:
         raise SemOfertas("kabum: sem __NEXT_DATA__")
@@ -171,7 +172,6 @@ def kabum(corpo: str, coletado_em: datetime) -> list[Oferta]:
         ativa = oferta.get("price") and (oferta.get("startsAt") or 0) <= agora < (oferta.get("endsAt") or 0)
         vigente = dec(oferta["price"]) if ativa else dec(p.get("price"))
         pix = dec(oferta.get("priceWithDiscount")) if ativa else dec(p.get("priceWithDiscount"))
-        de = dec(p.get("oldPrice"))
         # A parcela vem arredondada (até 1 centavo por parcela): o parcelado só
         # confere o preço vigente; quem vai para `preco` é o vigente.
         if vigente is None or abs(total - vigente) > Decimal("0.01") * n:
@@ -184,10 +184,9 @@ def kabum(corpo: str, coletado_em: datetime) -> list[Oferta]:
             url=f"https://www.kabum.com.br/produto/{p['code']}/{p.get('friendlyName', '')}",
             titulo=p.get("name", ""), imagem=img, marca=(p.get("manufacturer") or {}).get("name"),
             vendedor=p.get("sellerName"), preco=vigente, parcelas_max=n, parcela_valor=valor,
-            # Pix só quando o JSON mostra desconto (o padrão conferido na tela em 27/11).
-            # Pix igual ao cartão pode ser "sem desconto" ou desconto calculado na página:
-            # não dá para saber pelo JSON, então None até o dono conferir.
-            preco_pix=pix if pix and pix < vigente else None, preco_de=de if de and de > vigente else None,
+            # n x parcela == vigente (checado acima): o parcelado não tem juros.
+            parcelas_sem_juros=n,
+            preco_pix=pix if pix and pix <= vigente else None, preco_de=None,
             em_estoque=bool(p.get("available")), coletado_em=coletado_em,
         ))
     return ofertas

@@ -64,8 +64,10 @@ def test_kabum_pix_e_de_conferidos_na_tela():
     o = por_id(PARSERS["kabum"](fixture("kabum", "busca_ps5.html"), KABUM_EM))["989702"]
     assert o.preco == Decimal("4599.00")  # 10 x 459,90 == offer.price
     assert o.parcelas_max == 10 and o.parcela_valor == Decimal("459.90")
-    assert o.preco_pix == Decimal("4369.05") and o.preco_de == Decimal("4893.76")
-    assert o.parcelas_sem_juros is None  # a tela não disse; continua desconhecido
+    assert o.preco_pix == Decimal("4369.05")
+    # oldPrice (4.893,76) batia com a tela neste dia, mas não às 16:44 de 27/11: "de" = None.
+    assert o.preco_de is None
+    assert o.parcelas_sem_juros == 10  # 10 x 459,90 == preço vigente: sem juros
     assert o.em_estoque and o.vendedor == "KaBuM!"
     assert o.url.startswith("https://www.kabum.com.br/produto/989702/")
 
@@ -111,17 +113,18 @@ def test_regressao_kabum_preco_pelo_parcelado_arredondado_ficava_abaixo_do_pix()
          "maxInstallment": "10x de R$ 2.009,74", "offer": None}
     (o,) = PARSERS["kabum"](_pagina_kabum(p), KABUM_EM)
     assert o.preco == Decimal("20097.41")
-    assert o.preco_pix is None  # Pix = cartão no JSON: não confirmado (ver teste de 16:15)
+    assert o.preco_pix == Decimal("20097.41")  # Pix = cartão: a tela de 16:44 confirmou que acontece
     assert o.alertas() == []
 
 
-def test_regressao_kabum_pix_sem_desconto_no_json_nao_e_pix_confirmado():
-    """27/11 16:15: oferta nova com offer.priceWithDiscount == offer.price (4.499).
-    A tela do dono mostrou Pix 0,95 x cartão na oferta anterior; aqui o JSON não
-    sustenta o Pix. Até confirmar, Pix = None (o bruto fica para reprocessar)."""
+def test_regressao_kabum_pix_igual_ao_cartao_virava_none_e_de_vinha_errado():
+    """27/11 16:15 (bruto) x 16:44 (tela do dono): Pix 4.499 = cartão nos dois, então
+    o JSON é confiável e Pix igual ao cartão é Pix. O "de" da tela era 4.893,76, que
+    não aparece no bruto; oldPrice dizia 4.649,07. "de" fica None até achar a fonte."""
     p = {"code": 989702, "name": "PS5", "friendlyName": "ps5", "available": True, "sellerName": "KaBuM!",
          "price": 4649.07, "oldPrice": 4649.07, "priceWithDiscount": 4649.07, "maxInstallment": "10x de R$ 449,90",
          "offer": {"price": 4499, "priceWithDiscount": 4499, "startsAt": 0, "endsAt": 4_000_000_000}}
     (o,) = PARSERS["kabum"](_pagina_kabum(p), KABUM_EM)
-    assert o.preco == Decimal("4499.00") and o.preco_pix is None
-    assert o.preco_de == Decimal("4649.07")
+    assert o.preco == Decimal("4499.00") and o.preco_pix == Decimal("4499.00")
+    assert o.preco_de is None
+    assert o.parcelas_max == 10 and o.parcelas_sem_juros == 10
