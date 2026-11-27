@@ -37,6 +37,11 @@
   MacBook com specs escritas de outro jeito, Acer Aspire 5 com o modelo em
   ordem diferente). Só mexer com par rotulado novo, sem perder precisão.
 
+## Vigia
+- Kabum "jogos ps5" (27/11 20:03): dos 10 primeiros, só 1 é jogo (GTA VI);
+  o resto é console e controle. Trocar o termo ou a ordenação muda a
+  `vigia.toml`: precisa de `--dry-run` e do "pode" do dono.
+
 ## Pagamento
 - BCB série 432 (Selic) respondeu 304 sem corpo em 27/11 (`docs/fontes/bcb.md`).
   Se continuar, investigar os cabeçalhos do curl_cffi. A Selic é só referência.
