@@ -96,6 +96,8 @@ def processar_arquivo(conn, arq: Path, raiz: Path, tudo: bool, r: Resumo) -> Non
     coletado = datetime.fromtimestamp(d["coletado_em"], tz=timezone.utc)
     r.arquivos += 1
     with conn.transaction():
+        if feito:  # versão de parser diferente: refaz o que este arquivo gerou
+            conn.execute(Q["apagar_snapshots_do_arquivo"], {"origem": origem})
         try:
             ofertas = PARSERS[loja](d["corpo"], coletado)
         except SemOfertas as e:

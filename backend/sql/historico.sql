@@ -45,3 +45,8 @@ ON CONFLICT (arquivo) DO UPDATE SET
 -- name: registrar_execucao
 INSERT INTO coleta_execucao (loja_id, tipo, inicio, fim, status, itens, erro)
 VALUES (%(loja_id)s, 'reprocesso', %(inicio)s, now(), %(status)s, %(itens)s, %(erro)s);
+
+-- name: apagar_snapshots_do_arquivo
+-- Parser novo relendo um arquivo: os snapshots que ele gerou são refeitos
+-- (dado derivado; o bruto continua intacto). Mesma transação da regravação.
+DELETE FROM preco_snapshot WHERE origem = %(origem)s;

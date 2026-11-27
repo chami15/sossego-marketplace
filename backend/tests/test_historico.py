@@ -115,3 +115,22 @@ def test_fixtures_reais_viram_snapshots(banco, tmp_path):
         bruto(tmp_path, 0, None, loja=loja, corpo=gzip.open(fix / loja / f"{nome}.gz", "rt", encoding="utf-8").read())
     r = reprocessar(banco, tmp_path)
     assert r.erros == [] and r.snapshots > 60
+
+
+def test_regressao_parser_novo_nao_atualizava_snapshot_ja_gravado(banco, tmp_path, monkeypatch):
+    """27/11: o Kabum ganhou Pix/"de" na versão 2 do parser, mas o --tudo mantinha
+    o snapshot antigo (ON CONFLICT DO NOTHING) e o Pix continuava vazio."""
+    import coleta.historico as h
+
+    bruto(tmp_path, 0, [produto_vtex(249.99)])
+    bruto(tmp_path, 60, [produto_vtex(249.99)])
+    reprocessar(banco, tmp_path)
+    original = h.PARSERS["ri-happy"]
+
+    def v2(corpo, em):
+        return [o.model_copy(update={"preco_pix": Decimal("237.49")}) for o in original(corpo, em)]
+
+    monkeypatch.setitem(h.PARSERS, "ri-happy", v2)
+    monkeypatch.setitem(h.PARSER_VERSAO, "ri-happy", "2")
+    reprocessar(banco, tmp_path, tudo=True)
+    assert snapshots(banco) == [(Decimal("249.99"), Decimal("237.49"), True)]  # 1 só: o 2º é igual
