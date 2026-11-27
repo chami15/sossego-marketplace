@@ -134,3 +134,16 @@ def test_regressao_parser_novo_nao_atualizava_snapshot_ja_gravado(banco, tmp_pat
     monkeypatch.setitem(h.PARSER_VERSAO, "ri-happy", "2")
     reprocessar(banco, tmp_path, tudo=True)
     assert snapshots(banco) == [(Decimal("249.99"), Decimal("237.49"), True)]  # 1 só: o 2º é igual
+
+
+def test_regressao_pagina_de_desafio_no_bruto_gerava_erro_a_cada_reprocesso(banco, tmp_path):
+    """27/11: o desafio Akamai da Amazon (salvo no bruto como evidência) nunca era
+    marcado como processado e somava um 'erro' em coleta_execucao a cada rodada."""
+    corpo = gzip.open(Path(__file__).parent / "fixtures" / "amazon" / "desafio_akamai_bm_verify.html.gz",
+                      "rt", encoding="utf-8").read()
+    bruto(tmp_path, 0, None, loja="amazon", corpo=corpo)
+    r1 = reprocessar(banco, tmp_path)
+    r2 = reprocessar(banco, tmp_path)
+    assert r1.erros == [] and r2.pulados == 1
+    with psycopg.connect(banco) as c:
+        assert c.execute("SELECT status FROM coleta_execucao").fetchall() == [("bloqueada",)]

@@ -27,6 +27,7 @@ from psycopg.types.json import Jsonb
 
 from config import ConfigColeta, database_url
 from coleta.base import Oferta
+from coleta.http import Resposta, parece_desafio
 from coleta.parsers import PARSER_VERSAO, PARSERS, SemOfertas
 from db.consultas import consultas
 
@@ -98,6 +99,15 @@ def processar_arquivo(conn, arq: Path, raiz: Path, tudo: bool, r: Resumo) -> Non
     with conn.transaction():
         if feito:  # versão de parser diferente: refaz o que este arquivo gerou
             conn.execute(Q["apagar_snapshots_do_arquivo"], {"origem": origem})
+        # Página de desafio anti-bot guardada como evidência: não tem oferta, não é
+        # molde quebrado. Registra uma vez como bloqueada e não relê mais.
+        resp = Resposta(d.get("status", 200), d.get("cabecalhos") or {}, d["corpo"].encode("utf-8"), d.get("url", ""))
+        desafio = parece_desafio(resp)
+        if desafio:
+            conn.execute(Q["registrar_execucao"], {"loja_id": loja_id, "inicio": coletado,
+                                                   "status": "bloqueada", "itens": 0, "erro": desafio})
+            conn.execute(Q["marcar_processado"], {"arquivo": origem, "ofertas": 0, "parser_versao": versao})
+            return
         try:
             ofertas = PARSERS[loja](d["corpo"], coletado)
         except SemOfertas as e:
