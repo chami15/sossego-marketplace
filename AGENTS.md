@@ -59,6 +59,8 @@ Windows sem make: `.\sossego.ps1 <alvo>` faz o mesmo que `make <alvo>`.
 | `.\sossego.ps1 matching [--refazer]` | anúncio → produto (ADR 002); o worker já roda no fim de cada rodada; `--refazer` quando a regra mudar |
 | `.\sossego.ps1 api` | API em http://127.0.0.1:8000 (OpenAPI em `/docs`); só lê/grava o banco, nunca chama loja |
 | `cd backend; uv run python -m pagamento.taxas [--dry-run]` | taxas do BCB agora (o worker já faz ~1x/dia) |
+| `cd frontend; npm run dev` | tela em http://127.0.0.1:5173 (precisa da API de pé) |
+| `cd frontend; npm run e2e` / `npm run prints` | Playwright: sobe API + Vite num banco `sossego_e2e` próprio; prints em `docs/prints/` |
 | `docker compose --profile ferramentas up -d adminer` | Adminer em http://127.0.0.1:8081 |
 | `.\sossego.ps1 atualizar-worker [ref]` | tag `worker-AAAAMMDD-HHMM` no ref (padrão: a branch atual), worktree nela, testes lá, reinicia |
 
@@ -91,5 +93,6 @@ Testes de banco usam `sossego_test`, recriado a cada sessão: o Postgres precisa
 - `backend/coleta/vigiar.py` — CLI/worker; `admin.py` — operação.
 - `backend/api/` — rotas (`app.py`) e contrato (`modelos.py`); SQL em `backend/sql/api.sql`.
 - `backend/pagamento/` — calculadora pura (`calculo.py`) e taxas do BCB (`taxas.py`).
+- `frontend/src/` — `styles/tokens.css` (design system), `components/`, `features/<tela>/`.
 - `backend/matching/` — normalizar → decidir → associar; `tests/fixtures/matching.csv` é o gabarito.
 - `dados/bruto/<loja>/<dia>/*.json.gz` — resposta crua (landing zone, fora do git).

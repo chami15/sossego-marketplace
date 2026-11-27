@@ -69,6 +69,19 @@ Atualizado em 27/11/2026 (Black Friday).
   - `POST /api/v1/pagamento/simular`.
   - Bug do `ClienteEducado` achado no BCB: 304 sem cópia em cache virava
     resposta vazia. Teste de regressão escrito antes da correção.
+- **Fase 6 (27/11, aguardando aprovação dos prints)** — `fase/06-design-system-onboarding`
+  - `frontend/`: Vite + React + TypeScript. Tokens do prompt em `styles/tokens.css`;
+    Fraunces nos destaques e Literata no corpo, self-hosted (`@fontsource`).
+    Cantos de 2px, sem pílula/vidro/blur/gradiente; contraste AA, foco visível,
+    teclado e `prefers-reduced-motion`.
+  - Componentes: Botao, Chip, BarraProgresso, Aviso, CampoTags, IconeCategoria
+    (traço próprio), IconeLoja (arquivo local; monograma enquanto não há ícone).
+  - Onboarding em 3 passos com limite de 3 (aviso, sem tirar a mais antiga),
+    termos em tags, "Não tenho preferência", linha da LGPD, erro que mantém as
+    escolhas, "refazer preferências" no mesmo perfil. Termos não disparam coleta.
+  - e2e (Playwright) com a API real num banco só dele (`sossego_e2e`, recriado
+    por `db/recriar.py`, que recusa bancos que não terminem em `_test`/`_e2e`).
+  - Prints em `docs/prints/fase-06/` (1440 e 390 px).
 
 ### Ocorrências da Black Friday (27/11)
 
@@ -84,5 +97,6 @@ Atualizado em 27/11/2026 (Black Friday).
 
 ## Falta
 
-- Fases 6 a 10 (telas, mais lojas, polimento).
+- Fases 7 a 10 (telas, mais lojas, polimento).
+- Ícones das lojas: baixar uma vez, com o "pode" do dono (hoje são monogramas).
 - Ajustes pequenos e pendências de loja: `docs/backlog.md`.

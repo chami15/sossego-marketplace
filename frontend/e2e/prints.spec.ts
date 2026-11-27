@@ -14,8 +14,15 @@ for (const tela of TELAS) {
     // Sem transição: o print não pega botão no meio da animação.
     test.use({ viewport: tela.viewport, deviceScaleFactor: tela.deviceScaleFactor, reducedMotion: "reduce" });
 
-    const foto = (page: Page, n: string) =>
-      page.screenshot({ path: `../docs/prints/fase-06/${tela.nome}-${n}.png`, fullPage: true });
+    // Página inteira com elemento fixo sai torta (barra no meio, rodapé por cima do
+    // conteúdo). Só no print, barra e rodapé entram no fluxo da página; na tela não muda.
+    const foto = async (page: Page, n: string) => {
+      const estilo = await page.addStyleTag({
+        content: ".progresso{position:absolute}.onb__rodape{position:static}",
+      });
+      await page.screenshot({ path: `../docs/prints/fase-06/${tela.nome}-${n}.png`, fullPage: true });
+      await estilo.evaluate((e) => (e as Element).remove());
+    };
 
     test("fluxo", async ({ page }) => {
       await page.goto("/onboarding");
