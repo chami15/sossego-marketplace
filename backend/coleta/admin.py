@@ -82,6 +82,11 @@ def status(cfg: ConfigColeta) -> None:
         elif b.pausada_ate > agora:
             sit = f"BLOQUEIO, pausa até {_hora(b.pausada_ate)}: {b.motivo}"
             alertas.append(f"{loja}: a loja barrou ({b.motivo}). Aguardando a pausa.")
+        elif ok is None or agora - ok > 2 * cadastro.periodo_min * 60:
+            # Sem bloqueio, mas sem dado: worker ou máquina parados. "ok" aqui mentiria.
+            desde = f"última ok há {(agora - ok) / 3600:.0f} h" if ok else "nenhuma coleta ok"
+            sit = f"ATRASADA ({desde}; período {cadastro.periodo_min} min)"
+            alertas.append(f"{loja}: {desde}. Worker vivo? Máquina ficou desligada/dormindo?")
         else:
             sit = "ok"
         print(f"{loja:<16}{_hora(ok) if ok else '-':>14}{estado.enviadas_desde(loja, agora - 3600):>5}"

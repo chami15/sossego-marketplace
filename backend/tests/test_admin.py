@@ -36,3 +36,18 @@ def test_regressao_status_desligado_mandava_usar_worker_em_vez_de_ligar(tmp_path
     status(cfg)
     saida = capsys.readouterr().out
     assert "sossego.ps1 ligar" in saida and "sossego.ps1 worker" not in saida
+
+
+def test_regressao_status_dizia_ok_para_loja_sem_coleta_ha_horas(tmp_path, capsys):
+    """27/11: a máquina ficou desligada das 20h às 15h e o status mostrava 'ok'
+    para a Amazon com a última coleta de 19 h atrás (período: 120 min)."""
+    cfg = ConfigColeta(dir_dados=tmp_path)
+    e = Estado(tmp_path / "coleta.sqlite3")
+    agora = time.time()
+    for loja, idade_h in [("amazon", 19), ("ludopedia", 0.5)]:
+        e.registrar(loja=loja, url="https://x/busca", tipo="busca", inicio=agora - idade_h * 3600,
+                    status=200, duracao_ms=1, bytes_=1, resultado="enviada", classe="ok")
+    status(cfg)
+    linhas = {l.split()[0]: l for l in capsys.readouterr().out.splitlines() if l.split()}
+    assert "ATRASADA" in linhas["amazon"]
+    assert linhas["ludopedia"].rstrip().endswith("ok")
