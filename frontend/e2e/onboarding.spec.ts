@@ -56,14 +56,12 @@ test("onboarding completo grava o perfil anônimo com os limites de 3", async ({
   await expect(caixa(page, "Não tenho preferência")).not.toBeChecked();
   await clicar(caixa(page, "Amazon"));
   await expect(page.getByRole("status")).toContainText("Máximo 3");
+  // Resumo ao vivo com nomes de exibição, nunca slugs.
+  await expect(page.getByRole("complementary")).toContainText("Ri Happy, Kabum, Ludopedia");
+  await expect(page.getByRole("complementary")).not.toContainText("ri-happy");
   await page.getByRole("button", { name: "Concluir" }).click();
 
-  await expect(page.getByRole("heading", { name: "Pronto. Suas preferências estão salvas." })).toBeVisible();
-  // Nomes de exibição, nunca slugs (o hífen quebrava a linha no celular).
-  const resumo = page.locator(".pronto__resumo");
-  for (const n of ["Ri Happy", "Kabum", "Ludopedia", "Jogos de tabuleiro", "Informática"]) await expect(resumo).toContainText(n);
-  await expect(resumo).not.toContainText("ri-happy");
-  await expect(resumo).not.toContainText("jogos-tabuleiro");
+  await expect(page.getByRole("heading", { name: "O que você quer comprar hoje?" })).toBeVisible();
   const p = await perfilNoBanco(page);
   expect(p).toMatchObject({ faixa_etaria: "25-34", genero: null, interesses: ["ps5", "dixit"] });
   // O banco devolve categorias e lojas na ordem dele; o que importa é o conjunto.
@@ -76,7 +74,7 @@ test("refazer preferências volta com as escolhas e salva no mesmo perfil", asyn
   await page.getByRole("button", { name: "Avançar" }).click();
   await clicar(caixa(page, "Kabum"));
   await page.getByRole("button", { name: "Concluir" }).click();
-  await expect(page.getByRole("heading", { name: /Pronto/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "O que você quer comprar hoje?" })).toBeVisible();
   const antes = await perfilNoBanco(page);
 
   await page.getByRole("link", { name: "refazer preferências" }).click();
@@ -88,7 +86,7 @@ test("refazer preferências volta com as escolhas e salva no mesmo perfil", asyn
   await clicar(caixa(page, "Não tenho preferência"));
   await page.getByRole("button", { name: "Concluir" }).click();
 
-  await expect(page.getByRole("heading", { name: /Pronto/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "O que você quer comprar hoje?" })).toBeVisible();
   const depois = await perfilNoBanco(page);
   expect(depois.id).toBe(antes.id);
   expect(depois).toMatchObject({ genero: "prefiro-nao-dizer", lojas: [] });
@@ -107,7 +105,7 @@ test("falha ao salvar mostra o erro, mantém as escolhas e deixa tentar de novo"
 
   await page.unroute("**/api/v1/perfis");
   await page.getByRole("button", { name: "Tentar de novo" }).click();
-  await expect(page.getByRole("heading", { name: /Pronto/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "O que você quer comprar hoje?" })).toBeVisible();
   expect((await perfilNoBanco(page)).lojas).toEqual(["ludopedia"]);
 });
 

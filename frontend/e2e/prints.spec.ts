@@ -64,9 +64,8 @@ for (const tela of TELAS) {
 
       await page.unroute("**/api/v1/perfis");
       await page.getByRole("button", { name: "Tentar de novo" }).click();
-      await expect(page.getByRole("heading", { name: /Pronto/ })).toBeVisible();
-      await expect(page.getByText("Kabum, Ludopedia, Ri Happy")).toBeVisible();
-      await foto(page, "11-pronto");
+      await expect(page.getByRole("heading", { name: "O que você quer comprar hoje?" })).toBeVisible();
+      await foto(page, "11-concluido-vai-para-a-home");
     });
 
     test("erro ao carregar opções", async ({ page }) => {
