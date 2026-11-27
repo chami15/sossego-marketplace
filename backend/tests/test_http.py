@@ -441,3 +441,19 @@ async def test_estado_sobrevive_a_novo_cliente(relogio, transporte, tmp_path):
     c2 = ClienteEducado(Estado(caminho), transporte, ConfigColeta(), relogio, random.Random(1), pausada=lambda: False)
     with pytest.raises(LojaEmPausa):
         await c2.obter("https://loja.com/q", tipo="produto")
+
+
+async def test_regressao_desafio_akamai_da_amazon_era_molde_quebrado(relogio, transporte):
+    """27/11 15:11 (Black Friday): a Amazon devolveu 200 com o desafio do Akamai
+    Bot Manager (bm-verify, POST /_sec/verify, prova de trabalho). Virou
+    molde_quebrado, que nunca desliga; é bloqueio, e tem que escalar."""
+    import gzip
+    from pathlib import Path
+
+    corpo = gzip.open(Path(__file__).parent / "fixtures" / "amazon" / "desafio_akamai_bm_verify.html.gz").read()
+    transporte.em("https://loja.com/s?k=jogo+ito", Resposta(200, {"content-type": "text/html"}, corpo, "https://loja.com/s?k=jogo+ito"))
+    c = cliente(relogio, transporte)
+    with pytest.raises(SinalDeBloqueio):
+        await c.obter("https://loja.com/s?k=jogo+ito", tipo="busca", validar=lambda resp: False)
+    b = c.estado.breaker("loja.com")
+    assert b.tipo_motivo == "bloqueio" and b.sinais_seguidos == 1

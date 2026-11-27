@@ -155,6 +155,10 @@ MARCADORES_DESAFIO = [
     "cf-chl-",                      # Cloudflare challenge
     "/cdn-cgi/challenge-platform/h/",
     "access denied</title>",        # Akamai
+    # Akamai Bot Manager, desafio com prova de trabalho (Amazon, 27/11/2026 na BF):
+    # 200, 2 KB, meta refresh com bm-verify e POST para /_sec/verify. Não resolvemos.
+    "bm-verify=",
+    "/_sec/verify?provider=interstitial",
     "suspeitamos que você seja um robô",
     # Interstício anti-robô do Mercado Livre (visto em 26/11/2026): 17 KB, botão
     # "Continuar" e exige JS. Não é página de dados: é a loja dizendo "não".
