@@ -1,6 +1,7 @@
 """Parse determinístico contra respostas reais salvas em 26/11/2026."""
 
 import gzip
+import json
 from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -94,3 +95,20 @@ def test_intersticio_do_ml_nao_vira_oferta_vazia_silenciosa(loja):
 ])
 def test_brl(texto, esperado):
     assert brl(texto) == esperado
+
+
+def _pagina_kabum(produto):
+    dados = json.dumps({"catalogServer": {"data": [produto]}})
+    return f'<script id="__NEXT_DATA__" type="application/json">{json.dumps({"props": {"pageProps": {"data": dados}}})}</script>'
+
+
+def test_regressao_kabum_preco_pelo_parcelado_arredondado_ficava_abaixo_do_pix():
+    """27/11: MacBook a R$ 20.097,41 em "10x de R$ 2.009,74" (arredondado para baixo).
+    O preço saía 20.097,40, um centavo abaixo do Pix (= preço, sem desconto), e a
+    oferta virava alerta em vez de snapshot."""
+    p = {"code": 1081920, "name": "Macbook Air M5", "friendlyName": "macbook-air-m5", "available": True,
+         "sellerName": "KaBuM!", "price": 20097.41, "oldPrice": 20097.41, "priceWithDiscount": 20097.41,
+         "maxInstallment": "10x de R$ 2.009,74", "offer": None}
+    (o,) = PARSERS["kabum"](_pagina_kabum(p), KABUM_EM)
+    assert o.preco == Decimal("20097.41") and o.preco_pix == Decimal("20097.41")
+    assert o.alertas() == []

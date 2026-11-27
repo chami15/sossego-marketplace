@@ -36,14 +36,17 @@ PS5 989702: **Pix R$ 4.274,05**, **"de" R$ 4.893,76**, **10x de R$ 449,90** (= 4
 (`offer.priceWithDiscount` 4.369,05 = `offer.price` 4.599 × 0,95). A oferta
 mudou de um dia para o outro; a estrutura, não.
 
-## O que o parser grava (versão 2, desde 27/11)
+## O que o parser grava (versão 3, desde 27/11)
 
-- `preco` = total parcelado (`n × valor` de `maxInstallment`), **só se** bater
-  (±R$ 0,05) com o preço vigente (`offer.price` com oferta ativa, senão `price`).
-  Se não bater, o produto não vira oferta e o log registra.
+- `preco` = preço vigente no cartão (`offer.price` com oferta ativa, senão
+  `price`), **só se** o parcelado de `maxInstallment` bater com ele (até
+  R$ 0,01 por parcela: a parcela vem arredondada para baixo, ex. MacBook
+  20.097,41 em 10x de 2.009,74). Se não bater, não vira oferta e o log registra.
 - `preco_pix` = `offer.priceWithDiscount` (oferta ativa) ou `priceWithDiscount`.
 - `preco_de` = `oldPrice`, só se for maior que `preco`.
 - `parcelas_max`, `parcela_valor`, `em_estoque`, `vendedor`.
 - `parcelas_sem_juros`: **None** (a tela conferida não disse).
 
-Versão 1 (26/11) gravava Pix e "de" como None; `historico --tudo` refez.
+Versão 1 (26/11): Pix e "de" = None. Versão 2: `preco` = parcelado arredondado,
+1-3 centavos abaixo do real (14 ofertas viraram alerta "Pix > preço"). Versão 3
+corrige; `historico --tudo` refez tudo.

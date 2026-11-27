@@ -18,7 +18,7 @@ from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
 from coleta.base import Oferta, brl, dec
 
-PARSER_VERSAO = {"amazon": "1", "ludopedia": "1", "ri-happy": "1", "kabum": "2"}
+PARSER_VERSAO = {"amazon": "1", "ludopedia": "1", "ri-happy": "1", "kabum": "3"}
 
 
 class SemOfertas(Exception):
@@ -172,7 +172,9 @@ def kabum(corpo: str, coletado_em: datetime) -> list[Oferta]:
         vigente = dec(oferta["price"]) if ativa else dec(p.get("price"))
         pix = dec(oferta.get("priceWithDiscount")) if ativa else dec(p.get("priceWithDiscount"))
         de = dec(p.get("oldPrice"))
-        if vigente is None or abs(total - vigente) > Decimal("0.05"):
+        # A parcela vem arredondada (até 1 centavo por parcela): o parcelado só
+        # confere o preço vigente; quem vai para `preco` é o vigente.
+        if vigente is None or abs(total - vigente) > Decimal("0.01") * n:
             log.warning(json.dumps({"evento": "kabum_preco_inconsistente", "code": p.get("code"),
                                     "parcelado": str(total), "vigente": str(vigente)}))
             continue
@@ -181,8 +183,8 @@ def kabum(corpo: str, coletado_em: datetime) -> list[Oferta]:
             loja="kabum", id_externo=str(p["code"]),
             url=f"https://www.kabum.com.br/produto/{p['code']}/{p.get('friendlyName', '')}",
             titulo=p.get("name", ""), imagem=img, marca=(p.get("manufacturer") or {}).get("name"),
-            vendedor=p.get("sellerName"), preco=total, parcelas_max=n, parcela_valor=valor,
-            preco_pix=pix or None, preco_de=de if de and de > total else None,
+            vendedor=p.get("sellerName"), preco=vigente, parcelas_max=n, parcela_valor=valor,
+            preco_pix=pix or None, preco_de=de if de and de > vigente else None,
             em_estoque=bool(p.get("available")), coletado_em=coletado_em,
         ))
     return ofertas
