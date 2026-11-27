@@ -227,3 +227,11 @@ WHERE e.status = 'ok' GROUP BY l.slug;
 
 -- name: ultima_taxa
 SELECT data, cdi_anual FROM taxa_referencia ORDER BY data DESC LIMIT 1;
+
+-- name: existe_categoria
+SELECT 1 FROM categoria WHERE slug = %(slug)s;
+
+-- name: por_categoria
+-- Chips da home: a categoria inteira, mais recente primeiro (o card filtra sem oferta viva).
+SELECT p.id FROM produto p JOIN categoria c ON c.id = p.categoria_id
+WHERE c.slug = %(slug)s ORDER BY p.id DESC LIMIT 200;

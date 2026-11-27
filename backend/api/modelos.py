@@ -79,6 +79,7 @@ class Recomendacao(Card):
 
 class ResultadoBusca(BaseModel):
     q: str
+    categoria: str | None = None
     ordem: str
     total: int
     resultados: list[Card]

@@ -193,14 +193,21 @@ def criar_app(url_banco: str | None = None, dir_dados: Path | None = None) -> Fa
         return _perfil(conn, pid)
 
     @app.get(f"{v1}/busca", response_model=m.ResultadoBusca, tags=["busca"])
-    def busca(q: str = Query(min_length=2, max_length=100),
+    def busca(q: str | None = Query(None, min_length=2, max_length=100),
+              categoria: str | None = Query(None, description="slug; sem q, lista a categoria (chips da home)"),
               perfil: UUID | None = None,
               ordem: Literal["relevancia", "preco", "pix", "queda"] = "relevancia",
               loja: list[str] | None = Query(None, description="só ofertas destas lojas (slug)"),
               preco_min: m.Dinheiro | None = None, preco_max: m.Dinheiro | None = None,
               conn=Conn):
-        ids = _buscar(conn, q)
+        if not q and not categoria:
+            raise HTTPException(422, "informe q ou categoria")
+        if categoria and not conn.execute(Q["existe_categoria"], {"slug": categoria}).fetchone():
+            raise HTTPException(422, f"categoria desconhecida: {categoria}")
+        ids = _buscar(conn, q) if q else [r["id"] for r in conn.execute(Q["por_categoria"], {"slug": categoria})]
         res = _na_ordem(ids, cards(conn, ids, loja))
+        if categoria:
+            res = [c for c in res if c.categoria == categoria]
         res = [c for c in res if (preco_min is None or c.menor_preco >= preco_min)
                and (preco_max is None or c.menor_preco <= preco_max)]
         if ordem == "preco":
@@ -209,8 +216,9 @@ def criar_app(url_banco: str | None = None, dir_dados: Path | None = None) -> Fa
             res.sort(key=lambda c: c.menor_pix if c.menor_pix is not None else c.menor_preco)
         elif ordem == "queda":
             res.sort(key=lambda c: c.variacao_pct if c.variacao_pct is not None else Decimal(0))
-        conn.execute(Q["registrar_busca"], {"perfil": perfil, "termo": q.strip(), "resultados": len(res)})
-        return m.ResultadoBusca(q=q, ordem=ordem, total=len(res), resultados=res)
+        if q:  # navegar por categoria não é busca: não entra no histórico de buscas
+            conn.execute(Q["registrar_busca"], {"perfil": perfil, "termo": q.strip(), "resultados": len(res)})
+        return m.ResultadoBusca(q=q or "", categoria=categoria, ordem=ordem, total=len(res), resultados=res)
 
     @app.get(f"{v1}/produtos/{{produto_id}}", response_model=m.Produto, tags=["produto"])
     def produto(produto_id: int, conn=Conn):

@@ -134,6 +134,17 @@ def test_busca_ordena_filtra_e_registra(api, catalogo):
     assert api.get("/api/v1/busca", params={"q": "x"}).status_code == 422
 
 
+def test_busca_por_categoria_sem_termo_para_os_chips_da_home(api, catalogo):
+    r = api.get("/api/v1/busca", params={"categoria": "jogos-tabuleiro"}).json()
+    assert sorted(c["titulo"] for c in r["resultados"]) == ["Dixit", "Dixit: Odyssey"]
+    assert r["categoria"] == "jogos-tabuleiro" and r["q"] == ""
+    # Termo + categoria: os dois valem.
+    r = api.get("/api/v1/busca", params={"q": "dixit", "categoria": "games"}).json()
+    assert r["total"] == 0
+    assert api.get("/api/v1/busca").status_code == 422  # nem termo nem categoria
+    assert api.get("/api/v1/busca", params={"categoria": "nao-existe"}).status_code == 422
+
+
 # ---------- produto ----------
 
 def test_produto_com_ofertas_ordenadas_e_desatualizada_marcada(api, catalogo):
