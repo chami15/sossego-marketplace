@@ -1,10 +1,11 @@
 /* Design system do Sossego (PROMPT, seção 7). Institucional: hierarquia por
-   tipografia e espaço; cantos retos; sem pílula, vidro, blur, gradiente ou
-   sombra difusa. Contrastes conferidos contra --papel (AA). */
+   tipografia, contraste de áreas e espaço; cantos retos; sem pílula, vidro,
+   blur, gradiente ou sombra difusa. Contrastes conferidos (AA). */
 :root {
-  --azul-royal: #2340c8;     /* ações, links, destaques — 7,0:1 */
-  --azul-profundo: #14246e;  /* títulos — 13:1 */
-  --azul-nevoa: #e8ecfa;     /* fundos de seção, selecionado */
+  --azul-royal: #2340c8;     /* ações, links, destaques — 7,0:1 no papel */
+  --azul-profundo: #14246e;  /* títulos e painel — 13:1 */
+  --azul-nevoa: #e8ecfa;     /* selecionado, fundos de seção */
+  --azul-hover: #f2f4fd;     /* passar o mouse sobre opção */
   --papel: #fafaf7;
   --branco: #ffffff;
   --tinta: #16181d;          /* texto — 17:1 */
@@ -15,34 +16,41 @@
   --alta: #b4232c;           /* preço subiu / erro — sempre com ícone */
   --alta-fundo: #fbeced;
 
+  /* Painel azul-profundo: texto claro sobre fundo sólido. */
+  --painel-texto: #fafaf7;   /* 13:1 */
+  --painel-suave: #b9c3ec;   /* 7,6:1 */
+  --painel-apagado: #8290cc; /* 4,6:1 — passos futuros */
+  --painel-linha: #2f3f8c;
+
   --fonte-display: "Fraunces Variable", Georgia, serif;
   --fonte-texto: "Literata Variable", Georgia, serif;
 
   --canto: 2px;
-  --canto-max: 4px;
 
-  --t-pergunta: 2.5rem;      /* ~40px */
-  --t-preco-pagina: 3rem;    /* ~48px */
-  --t-preco-card: 1.75rem;   /* ~28px */
+  --t-pergunta: 3rem;        /* 48px no painel */
+  --t-preco-pagina: 3rem;
+  --t-preco-card: 1.75rem;
   --t-corpo: 1.0625rem;      /* 17px */
-  --t-pequeno: 0.875rem;
+  --t-pequeno: 0.875rem;     /* 14px */
+  --t-rotulo: 0.75rem;       /* 12px, caixa alta espaçada */
 
+  /* Ritmo de 8 px (o 4 só para ajuste fino dentro de componente). */
   --esp-1: 4px;
   --esp-2: 8px;
-  --esp-3: 12px;
-  --esp-4: 16px;
-  --esp-5: 24px;
-  --esp-6: 32px;
-  --esp-7: 48px;
-  --esp-8: 64px;
+  --esp-3: 16px;
+  --esp-4: 24px;
+  --esp-5: 32px;
+  --esp-6: 48px;
+  --esp-7: 64px;
+  --esp-8: 96px;
 
   --foco: 2px solid var(--azul-royal);
-  --duracao: 160ms;
+  --duracao: 150ms;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 959px) {
   :root {
-    --t-pergunta: 1.875rem;  /* 30px no celular, sem quebrar palavra */
+    --t-pergunta: 1.75rem;   /* 28px no cabeçalho compacto */
     --t-corpo: 1rem;
   }
 }

@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { useId, useState, type KeyboardEvent } from "react";
 
 interface Props {
@@ -52,7 +53,7 @@ export function CampoTags({ rotulo, dica, placeholder, valores, onMudar, max = 2
                 aria-label={`Remover ${v}`}
                 onClick={() => onMudar(valores.filter((x) => x !== v))}
               >
-                ×
+                <X size={14} strokeWidth={2} aria-hidden="true" />
               </button>
             </li>
           ))}

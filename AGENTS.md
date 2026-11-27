@@ -19,6 +19,9 @@ com Postgres; frontend React depois.
 8. **Migration aplicada não se edita:** crie a próxima, numerada.
 9. Docs, nomes de domínio e commits em **português**. Comentário explica o porquê.
 10. Dinheiro é `Decimal`/`NUMERIC(12,2)`. Nunca `float`.
+11. **Ícones só em SVG do `lucide-react`** (traço 1,5–2). Nunca emoji nem
+    símbolo de texto no lugar de ícone (✓, ×, →), em lugar nenhum do app.
+    Texto só o necessário: o que se explica sozinho não ganha legenda.
 
 ## Coleta segura e educada (INEGOCIÁVEL)
 

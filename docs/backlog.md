@@ -37,6 +37,10 @@
   MacBook com specs escritas de outro jeito, Acer Aspire 5 com o modelo em
   ordem diferente). Só mexer com par rotulado novo, sem perder precisão.
 
+## Frontend
+- Ícones das lojas: o robots.txt do Google proíbe `/s2` (favicons). Escolher
+  outra fonte, ou ficar com os monogramas (`docs/fontes/icones.md`).
+
 ## Vigia
 - Kabum "jogos ps5" (27/11 20:03): dos 10 primeiros, só 1 é jogo (GTA VI);
   o resto é console e controle. Trocar o termo ou a ordenação muda a
