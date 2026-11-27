@@ -143,6 +143,11 @@ def imprimir_dry_run(tarefas: list[Tarefa], cfg: ConfigColeta) -> None:
     print(f"{'TOTAL':<15}{len(tarefas):>11}{'':>11}{total_h:>8.0f}{total_d:>9.0f}")
     print("\nCada loja: 1 requisição por vez, >= 5 s (+0-3 s de jitter) entre elas,"
           " espalhadas ao longo do período.")
+    from pagamento.taxas import plano as plano_taxas
+
+    print("\n== Banco Central (taxas da calculadora; só com --continuo, 1x por dia)")
+    for linha in plano_taxas():
+        print(f"   {linha}")
 
 
 def validador_busca(termo: str):
@@ -227,6 +232,18 @@ async def rodada_da_loja(cliente: ClienteEducado, loja: str, tarefas: list[Taref
             await apos(loja)
 
 
+async def taxas_diarias(cliente: ClienteEducado, checar_s: float = 3600) -> None:
+    """Taxas do BCB para a calculadora: confere a cada hora, vai à rede ~1x/dia.
+    Pausado ou desligado, não pede nada (o cliente educado recusa)."""
+    from config import database_url
+    from pagamento.taxas import atualizar_se_preciso
+
+    while True:
+        if not (cliente.pausada() or desligado(cliente.cfg.dir_dados)):
+            await atualizar_se_preciso(cliente, database_url())
+        await asyncio.sleep(checar_s)
+
+
 async def executar(tarefas: list[Tarefa], continuo: bool) -> None:
     cfg = ConfigColeta.carregar()
     estado = Estado(cfg.dir_dados / "coleta.sqlite3")
@@ -273,6 +290,7 @@ async def executar(tarefas: list[Tarefa], continuo: bool) -> None:
             await asyncio.sleep(60)
 
     pulso = asyncio.create_task(bater())
+    taxas = asyncio.create_task(taxas_diarias(cliente)) if continuo else None
     try:
         await asyncio.gather(*(ciclo(l, ts) for l, ts in por_loja.items()))
     except ColetaPausada as e:
@@ -281,6 +299,8 @@ async def executar(tarefas: list[Tarefa], continuo: bool) -> None:
         print("DESLIGADO (dados/DESLIGADO): encerrando.", flush=True)
     finally:
         pulso.cancel()
+        if taxas:
+            taxas.cancel()
         batimento.unlink(missing_ok=True)
         await transporte.fechar()
 
