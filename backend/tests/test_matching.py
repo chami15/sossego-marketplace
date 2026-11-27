@@ -113,3 +113,27 @@ def test_regressao_titulo_sem_capacidade_juntava_com_qualquer_capacidade():
     """27/11: 'Console Ps3 Slim' virava o mesmo que o PS3 Slim de 120, 250 e 320 GB."""
     for gb in (120, 250, 320):
         assert decidir("Console Ps3 Slim", None, f"Sony Playstation 3 Slim {gb}gb Standard", None).rotulo != "mesmo"
+
+
+def test_termos_de_busca_guardam_plataforma_e_capacidade():
+    from matching.normalizar import termos_busca
+
+    t = termos_busca("PlayStation®5 Slim Digital 825GB – Pacote ASTRO BOT e Gran Turismo 7")
+    assert {"ps5", "825gb", "slim", "astro"} <= set(t.split())
+    assert "ns2" in termos_busca("Star Fox – Nintendo Switch 2").split()
+
+
+@pytest.mark.parametrize("titulo,loja,categoria", [
+    ("Dixit", "ludopedia", "jogos-tabuleiro"),
+    ("Jogo De Tabuleiro - Dixit - Galápagos", "ri-happy", "jogos-tabuleiro"),
+    ("Jogo da Memória Dinossauros 28 peças feito em Madeira", "ri-happy", "brinquedos"),
+    ("Star Fox – Nintendo Switch 2", "amazon", "games"),
+    ("Controle Sem Fio Sony DualSense, PlayStation 5", "kabum", "games"),
+    ("MacBook Air Apple 13\" Chip M5, 512GB", "kabum", "informatica"),
+    ("Notebook Acer Aspire 5 Ryzen 5 16gb Ram", "kabum", "informatica"),
+    ("JBL Quantum 100M2 Fone de Ouvido Gamer", "amazon", None),
+])
+def test_categoria_do_produto(titulo, loja, categoria):
+    from matching.categorizar import categorizar
+
+    assert categorizar(titulo, loja) == categoria

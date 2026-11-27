@@ -119,3 +119,15 @@ def normalizar(titulo: str) -> Normalizado:
         condicao=condicao,
         com_console=any(t in ("console", "bundle", "pacote") for t in brutos),
     )
+
+
+def termos_busca(titulo: str) -> str:
+    """Texto para a busca da API: o `texto` do matching mais o que ele tira
+    para comparar à parte (plataforma, capacidade), porque quem busca digita
+    "ps5 1tb". Cor fica de fora: é variação, não produto."""
+    n = normalizar(titulo)
+    plataformas = set(n.plataformas)
+    if "dualsense" in n.tokens and not plataformas:  # "PlayStation DualSense", sem o 5
+        plataformas.add("ps5")
+    cap = [f"{c // 1024}tb" if c >= 1024 and c % 1024 == 0 else f"{c}gb" for c in sorted(n.capacidades)]
+    return " ".join(dict.fromkeys([*n.texto.split(), *sorted(plataformas), *cap]))

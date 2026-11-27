@@ -97,3 +97,31 @@ def test_manual_tira_anuncio_de_produto_automatico_sem_deixar_produto_orfao(banc
     associar(banco, [{"nome": "MK8", "anuncios": [{"loja": "kabum", "id": "483316"}]}])
     with psycopg.connect(banco) as c:
         assert c.execute("SELECT count(*) FROM produto").fetchone()[0] == 1
+
+
+def test_produto_novo_ganha_termos_de_busca_e_categoria(banco):
+    anuncio(banco, "amazon", "B0X", "Star Fox – Nintendo Switch 2")
+    anuncio(banco, "ludopedia", "606", "Dixit", minuto=1)
+    associar(banco, [])
+    with psycopg.connect(banco) as c:
+        linhas = dict(c.execute("SELECT p.termos, c.slug FROM produto p LEFT JOIN categoria c ON c.id = p.categoria_id"))
+    assert linhas == {"star fox ns2": "games", "dixit": "jogos-tabuleiro"}
+
+
+def test_refazer_nao_quebra_nem_perde_produto_vigiado(banco):
+    """Fase 4: vigia aponta para produto. O --refazer apagava todo produto
+    automático e ia bater na FK (matching inteiro em rollback)."""
+    import uuid
+
+    anuncio(banco, "kabum", "483316", "Jogo Mario Kart 8 Deluxe, Nintendo Switch - HBCPAABPA")
+    anuncio(banco, "amazon", "B0BK2RYTYH", "Mario Kart 8 Deluxe - Nintendo Switch", minuto=1)
+    associar(banco, [])
+    pid = uuid.uuid4()
+    with psycopg.connect(banco, autocommit=True) as c:
+        (produto,) = c.execute("SELECT produto_id FROM anuncio WHERE id_externo = '483316'").fetchone()
+        c.execute("INSERT INTO perfil (id, faixa_etaria) VALUES (%s, '25-34')", (pid,))
+        c.execute("INSERT INTO vigia (perfil_id, produto_id) VALUES (%s, %s)", (pid, produto))
+    associar(banco, [], refazer=True)
+    with psycopg.connect(banco) as c:
+        ids = {i for (i,) in c.execute("SELECT produto_id FROM anuncio")}
+    assert ids == {produto}

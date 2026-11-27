@@ -20,8 +20,9 @@ from dataclasses import dataclass, field
 import psycopg
 
 from db.consultas import consultas
+from matching.categorizar import categorizar
 from matching.decidir import decidir
-from matching.normalizar import normalizar
+from matching.normalizar import normalizar, termos_busca
 
 log = logging.getLogger("matching")
 Q = consultas("matching")
@@ -57,6 +58,15 @@ def _produto_que_aceita(conn, titulo: str, gtin: str | None) -> tuple[int, str, 
     return None
 
 
+def _atualizar_termos(conn) -> None:
+    for pid, atual, tem_categoria, titulos, loja in conn.execute(Q["todos_os_titulos"]).fetchall():
+        termos = " ".join(dict.fromkeys(t for titulo in titulos for t in termos_busca(titulo).split()))
+        categoria = None if tem_categoria else next(
+            (c for c in (categorizar(t, loja) for t in titulos) if c), None)
+        if termos != atual or categoria:
+            conn.execute(Q["preencher_termos"], {"id": pid, "termos": termos, "categoria": categoria})
+
+
 def associar(url_banco: str, produtos_manuais: list[dict], refazer: bool = False) -> ResumoMatching:
     r = ResumoMatching()
     with psycopg.connect(url_banco, connect_timeout=10) as conn:
@@ -65,7 +75,7 @@ def associar(url_banco: str, produtos_manuais: list[dict], refazer: bool = False
                 conn.execute(Q["desligar_todos"])
                 conn.execute(Q["apagar_produtos_automaticos"])
             _aplicar_manuais(conn, produtos_manuais, r)
-            for anuncio_id, titulo, gtin in conn.execute(Q["sem_produto"]).fetchall():
+            for anuncio_id, titulo, gtin, loja in conn.execute(Q["sem_produto"]).fetchall():
                 achado = _produto_que_aceita(conn, titulo, gtin)
                 if achado:
                     pid, metodo, motivo = achado
@@ -75,7 +85,8 @@ def associar(url_banco: str, produtos_manuais: list[dict], refazer: bool = False
                     livre = gtin and conn.execute(Q["gtin_livre"], {"gtin": gtin}).fetchone()[0]
                     (pid,) = conn.execute(Q["novo_produto"], {
                         "titulo": titulo, "normalizado": normalizar(titulo).texto,
-                        "gtin": gtin if livre else None}).fetchone()
+                        "gtin": gtin if livre else None,
+                        "termos": termos_busca(titulo), "categoria": categorizar(titulo, loja)}).fetchone()
                     metodo, motivo = "novo", "nenhum produto aceitou"
                     r.novos += 1
                 conn.execute(Q["ligar"], {"produto_id": pid, "metodo": metodo, "motivo": motivo,
@@ -83,6 +94,7 @@ def associar(url_banco: str, produtos_manuais: list[dict], refazer: bool = False
                 r.por_metodo[metodo] = r.por_metodo.get(metodo, 0) + 1
             # Grupo manual pode ter tirado o único anúncio de um produto automático.
             conn.execute(Q["apagar_produtos_automaticos"])
+            _atualizar_termos(conn)
     return r
 
 
