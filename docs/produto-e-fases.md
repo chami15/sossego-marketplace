@@ -13,7 +13,7 @@ Atualizado em 27/11/2026 (Black Friday).
   - ML pela API oficial pronto, aguardando credenciais.
 - **Fase 1 (mínima)** — `fase/01-fundacao`
   - Postgres 16 em Docker (porta 5434), migration 001, aplicador com hash.
-- **Fase 2 (parcial)** — `fase/02-coleta-e-historico`
+- **Fase 2 (fechada em 27/11, PR para a main)** — `fase/02-coleta-e-historico`
   - Contrato `Oferta` (Pydantic, Decimal), parsers Amazon/Ludopedia/VTEX.
   - Reprocessamento do bruto → anúncios e snapshots com dedupe, automático no
     fim de cada rodada do worker (falha de banco só loga; o bruto segue).
@@ -25,6 +25,13 @@ Atualizado em 27/11/2026 (Black Friday).
     `atualizar-worker`; tarefa sem admin (logon + 15 min) via
     `conhost --headless`, sem janela. `pausar`/`retomar`, `desligar`/`ligar`.
   - `status` marca ATRASADA a loja ativa sem coleta ok há mais de 2 períodos.
+  - `vigia.toml`: alvo com `lojas = [...]`; grupos `[[produto]]` (anúncios da
+    busca agrupados à mão, semente do matching); o `status` mostra a última
+    aparição de cada anúncio e destaca o que passou de 2 rodadas fora da busca.
+  - Vigiados: ps5, controle ps5, jogos ps5, nintendo switch 2, jogo nintendo
+    switch, notebook 16gb ram, macbook (Kabum); dixit (Ludopedia, Ri Happy);
+    ito (Ludopedia). ~10 req/h no total.
+- **Fase 3 (em andamento)** — `fase/03-matching`
 
 ### Ocorrências da Black Friday (27/11)
 
@@ -38,12 +45,9 @@ Atualizado em 27/11/2026 (Black Friday).
   16:44 confirmou Pix = cartão = 4.499 e 10x sem juros. O "de" da tela (4.893,76)
   não bate com `oldPrice` (4.649,07): parser v5 grava "de" vazio.
 
-## Falta (depois da BF)
+## Falta
 
-- API, web, adminer, CI (Fase 1 completa).
-- Kabum: de onde vem o "de" da tela (página de produto? só com o "pode").
-- Ri Happy: tirar `jogo ito` dela (não vende o Ito) — decisão do dono.
-- Molde quebrado pausar só a URL, não a loja (debate).
-- Fechar as conexões SQLite (`Estado`): ResourceWarning nos testes, inofensivo.
-- Matching (Fase 3), calculadora (Fase 5), telas.
-- Ver `docs/backlog.md`.
+- Fase 3: normalização, GTIN, fuzzy, conjunto rotulado (precisão ≥ 0,95).
+- Fase 1 completa: API, web, adminer, CI.
+- Fases 4 a 10 (API, calculadora, telas, mais lojas, polimento).
+- Ajustes pequenos e pendências de loja: `docs/backlog.md`.

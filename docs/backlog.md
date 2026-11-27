@@ -22,6 +22,10 @@
 - **Parser de página de produto** (depois da BF, decisão do dono em 27/11): hoje
   só a busca é lida; URL direta na `vigia.toml` não teria preço. Exige recon
   por loja + `--dry-run` + "pode".
+- Kabum: de onde vem o "de" da tela (4.893,76 em 27/11 não está no JSON da
+  busca; página de produto? só com recon + "pode").
+- Molde quebrado pausar só a URL, não a loja inteira (debate).
+- Fechar as conexões SQLite (`Estado`): ResourceWarning nos testes, inofensivo.
 
 ## Produto
 - Login e conta.
