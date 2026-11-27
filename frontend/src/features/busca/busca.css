@@ -1,0 +1,147 @@
+.busca {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: var(--esp-5) var(--esp-6) var(--esp-7);
+}
+.busca__cabeca {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: var(--esp-1) var(--esp-3);
+}
+.busca__titulo {
+  font-size: 2rem;
+}
+.busca__total {
+  color: var(--grafite);
+}
+
+/* Situação das lojas coletadas, numa linha só abaixo do título. */
+.coletas {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-1) var(--esp-3);
+  margin: var(--esp-2) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+}
+.coletas__loja {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-1);
+  color: var(--tinta);
+}
+.coletas__loja--ok svg {
+  color: var(--queda);
+}
+.coletas__loja--alerta svg {
+  color: var(--alta);
+}
+.coletas__quando {
+  color: var(--grafite);
+}
+
+/* Ordenar e filtrar no topo dos resultados, nunca em barra lateral. */
+.controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--esp-3);
+  margin: var(--esp-4) 0 var(--esp-4);
+  padding: var(--esp-3) 0;
+  border-block: 1px solid var(--linha);
+}
+.controles__ordem {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-1);
+}
+.controles__ordem .opcao-unica span {
+  min-height: 40px;
+  padding: 0 var(--esp-3);
+  font-size: var(--t-pequeno);
+}
+.controles__filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--esp-3);
+}
+.filtro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-1);
+  font-size: var(--t-pequeno);
+}
+.filtro__rotulo {
+  font-weight: 600;
+  color: var(--azul-profundo);
+}
+.filtro select,
+.filtro input {
+  height: 40px;
+  padding: 0 var(--esp-2);
+  background: var(--branco);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--canto);
+}
+.filtro--faixa {
+  display: grid;
+  grid-template-columns: 88px 88px auto;
+  column-gap: var(--esp-1);
+}
+.filtro--faixa .filtro__rotulo {
+  grid-column: 1 / -1;
+}
+.filtro__aplicar {
+  min-height: 40px;
+  padding: 0 var(--esp-3);
+  font-size: var(--t-pequeno);
+}
+.filtro__limpar {
+  min-height: 40px;
+  font-size: var(--t-pequeno);
+}
+
+.busca__vazio {
+  max-width: 56ch;
+  padding: var(--esp-6) 0;
+  color: var(--grafite);
+}
+.busca__vazio-titulo {
+  margin-bottom: var(--esp-2);
+  font-family: var(--fonte-display);
+  font-size: 1.5rem;
+  color: var(--azul-profundo);
+}
+
+@media (max-width: 959px) {
+  .busca {
+    padding: var(--esp-4) var(--esp-3) var(--esp-6);
+  }
+  .busca__cabeca {
+    grid-template-columns: 1fr;
+  }
+  .busca__titulo {
+    font-size: 1.5rem;
+  }
+  /* Ordenação rola de lado em vez de quebrar em 3 linhas. */
+  .controles__ordem {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    min-width: 0;
+    width: 100%;
+    padding: 2px 2px 4px;
+  }
+  .controles__ordem .opcao-unica span {
+    white-space: nowrap;
+  }
+  .controles,
+  .controles__filtros {
+    width: 100%;
+  }
+}

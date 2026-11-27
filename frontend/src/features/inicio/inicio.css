@@ -1,0 +1,107 @@
+.inicio {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Capa azul: a mesma voz do painel do onboarding, agora como faixa. */
+.capa {
+  background: var(--azul-profundo);
+  color: var(--painel-texto);
+}
+/* Mesma largura e margem das seções: a pergunta alinha com os títulos abaixo. */
+.capa__dentro {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: var(--esp-5) var(--esp-6) var(--esp-7);
+}
+.capa .campo-busca {
+  max-width: 800px;
+}
+.capa__marca {
+  font-family: var(--fonte-display);
+  font-variation-settings: "opsz" 144;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.capa__pergunta {
+  margin: var(--esp-6) 0 var(--esp-4);
+  font-size: var(--t-pergunta);
+  color: var(--painel-texto);
+}
+
+.inicio__corpo {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: var(--esp-6) var(--esp-6) var(--esp-7);
+}
+
+.secao + .secao {
+  margin-top: var(--esp-7);
+}
+.secao__cabeca {
+  display: flex;
+  align-items: baseline;
+  gap: var(--esp-2);
+}
+.secao__titulo {
+  margin-bottom: var(--esp-3);
+  padding-bottom: var(--esp-2);
+  font-size: 1.75rem;
+}
+.secao__conta {
+  font-size: var(--t-pequeno);
+  color: var(--grafite);
+}
+.secao__vazio {
+  color: var(--grafite);
+}
+
+.chips-categoria {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chip-categoria {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-2);
+  min-height: 48px;
+  padding: 0 var(--esp-3);
+  background: var(--branco);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--canto);
+  color: var(--azul-profundo);
+  text-decoration: none;
+  transition: background-color var(--duracao), border-color var(--duracao);
+}
+.chip-categoria:hover {
+  background: var(--azul-hover);
+  border-color: var(--azul-profundo);
+}
+
+@media (max-width: 959px) {
+  .capa__dentro {
+    padding: var(--esp-3) var(--esp-3) var(--esp-5);
+  }
+  .capa__marca {
+    font-size: 1.125rem;
+  }
+  .capa__pergunta {
+    margin: var(--esp-4) 0 var(--esp-3);
+  }
+  .inicio__corpo {
+    padding: var(--esp-4) var(--esp-3) var(--esp-6);
+  }
+  .secao + .secao {
+    margin-top: var(--esp-6);
+  }
+  .secao__titulo {
+    font-size: 1.375rem;
+  }
+}

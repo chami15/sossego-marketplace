@@ -30,6 +30,24 @@ const ICONES: Record<string, LucideIcon> = {
   bola: Dumbbell,
 };
 
+// slug da categoria → chave do ícone (mesma tabela da migration 004), para o card.
+const DO_SLUG: Record<string, string> = {
+  eletrodomesticos: "geladeira",
+  eletronicos: "tv",
+  games: "controle",
+  "jogos-tabuleiro": "dado",
+  informatica: "notebook",
+  vestuario: "camiseta",
+  calcados: "tenis",
+  cosmeticos: "frasco",
+  casa: "casa",
+  brinquedos: "urso",
+  livros: "livro",
+  esporte: "bola",
+};
+
+export const iconeDoSlug = (slug: string | null) => DO_SLUG[slug ?? ""] ?? "casa";
+
 export function IconeCategoria({ icone, tamanho = 24 }: { icone: string; tamanho?: number }) {
   const Icone = ICONES[icone] ?? House;
   return <Icone size={tamanho} strokeWidth={1.5} aria-hidden="true" />;
