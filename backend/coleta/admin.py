@@ -86,6 +86,36 @@ def linhas_grupos(produtos: list[dict], visto: dict[tuple[str, str], float],
     return linhas, alertas
 
 
+def situacao_loja(loja: str, estado: Estado, agora: float) -> tuple[str, str, str | None]:
+    """(código, texto, alerta) da loja. Usado pelo status e pela /api/v1/saude:
+    a regra de "loja quebrada aparece, não some" fica num lugar só."""
+    ok = estado.ultima_por_classe(loja, "ok")
+    b = estado.breaker(loja)
+    cadastro = LOJAS.get(loja)
+    if cadastro and not cadastro.ativa:
+        # Prioridade máxima: loja fora do worker nunca aparece como "ok".
+        return "inativa", f"INATIVA ({cadastro.motivo_inativa})", None
+    if cadastro is None:
+        # Só sondada (recon/detecção): nada é coletado dela.
+        pausa = f"; {b.tipo_motivo} até {_hora(b.pausada_ate)}" if b.pausada_ate > agora else ""
+        return "fora_do_worker", f"fora do worker (só sondagem{pausa})", None
+    if b.desligada:
+        return ("desligada", f"DESLIGADA por bloqueio: {b.motivo}",
+                f"{loja}: desligada ({b.motivo}). Religar: .\\sossego.ps1 religar {loja}")
+    if b.pausada_ate > agora and b.tipo_motivo == "molde_quebrado":
+        return ("molde_quebrado", f">>> MOLDE QUEBRADO <<< pausa até {_hora(b.pausada_ate)}: {b.motivo}",
+                f"{loja}: o PARSER/URL quebrou, não é bloqueio. Bruto salvo; corrigir molde.")
+    if b.pausada_ate > agora:
+        return ("bloqueio", f"BLOQUEIO, pausa até {_hora(b.pausada_ate)}: {b.motivo}",
+                f"{loja}: a loja barrou ({b.motivo}). Aguardando a pausa.")
+    if ok is None or agora - ok > 2 * cadastro.periodo_min * 60:
+        # Sem bloqueio, mas sem dado: worker ou máquina parados. "ok" aqui mentiria.
+        desde = f"última ok há {(agora - ok) / 3600:.0f} h" if ok else "nenhuma coleta ok"
+        return ("atrasada", f"ATRASADA ({desde}; período {cadastro.periodo_min} min)",
+                f"{loja}: {desde}. Worker vivo? Máquina ficou desligada/dormindo?")
+    return "ok", "ok", None
+
+
 def status(cfg: ConfigColeta, produtos: list[dict] | None = None, url_banco: str | None = None) -> None:
     import json
 
@@ -108,31 +138,9 @@ def status(cfg: ConfigColeta, produtos: list[dict] | None = None, url_banco: str
     alertas = []
     for loja in estado.lojas_com_atividade():
         ok = estado.ultima_por_classe(loja, "ok")
-        b = estado.breaker(loja)
-        cadastro = LOJAS.get(loja)
-        if cadastro and not cadastro.ativa:
-            # Prioridade máxima: loja fora do worker nunca aparece como "ok".
-            sit = f"INATIVA ({cadastro.motivo_inativa})"
-        elif cadastro is None:
-            # Só sondada (recon/detecção): nada é coletado dela.
-            pausa = f"; {b.tipo_motivo} até {_hora(b.pausada_ate)}" if b.pausada_ate > agora else ""
-            sit = f"fora do worker (só sondagem{pausa})"
-        elif b.desligada:
-            sit = f"DESLIGADA por bloqueio: {b.motivo}"
-            alertas.append(f"{loja}: desligada ({b.motivo}). Religar: .\\sossego.ps1 religar {loja}")
-        elif b.pausada_ate > agora and b.tipo_motivo == "molde_quebrado":
-            sit = f">>> MOLDE QUEBRADO <<< pausa até {_hora(b.pausada_ate)}: {b.motivo}"
-            alertas.append(f"{loja}: o PARSER/URL quebrou, não é bloqueio. Bruto salvo; corrigir molde.")
-        elif b.pausada_ate > agora:
-            sit = f"BLOQUEIO, pausa até {_hora(b.pausada_ate)}: {b.motivo}"
-            alertas.append(f"{loja}: a loja barrou ({b.motivo}). Aguardando a pausa.")
-        elif ok is None or agora - ok > 2 * cadastro.periodo_min * 60:
-            # Sem bloqueio, mas sem dado: worker ou máquina parados. "ok" aqui mentiria.
-            desde = f"última ok há {(agora - ok) / 3600:.0f} h" if ok else "nenhuma coleta ok"
-            sit = f"ATRASADA ({desde}; período {cadastro.periodo_min} min)"
-            alertas.append(f"{loja}: {desde}. Worker vivo? Máquina ficou desligada/dormindo?")
-        else:
-            sit = "ok"
+        _, sit, alerta = situacao_loja(loja, estado, agora)
+        if alerta:
+            alertas.append(alerta)
         print(f"{loja:<16}{_hora(ok) if ok else '-':>14}{estado.enviadas_desde(loja, agora - 3600):>5}"
               f"{estado.enviadas_desde(loja, agora - 86400):>6}  {sit}")
     if produtos:
