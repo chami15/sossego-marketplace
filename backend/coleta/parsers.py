@@ -18,7 +18,7 @@ from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
 from coleta.base import Oferta, brl, dec
 
-PARSER_VERSAO = {"amazon": "1", "ludopedia": "1", "ri-happy": "1", "kabum": "3"}
+PARSER_VERSAO = {"amazon": "1", "ludopedia": "1", "ri-happy": "1", "kabum": "4"}
 
 
 class SemOfertas(Exception):
@@ -184,7 +184,10 @@ def kabum(corpo: str, coletado_em: datetime) -> list[Oferta]:
             url=f"https://www.kabum.com.br/produto/{p['code']}/{p.get('friendlyName', '')}",
             titulo=p.get("name", ""), imagem=img, marca=(p.get("manufacturer") or {}).get("name"),
             vendedor=p.get("sellerName"), preco=vigente, parcelas_max=n, parcela_valor=valor,
-            preco_pix=pix or None, preco_de=de if de and de > vigente else None,
+            # Pix só quando o JSON mostra desconto (o padrão conferido na tela em 27/11).
+            # Pix igual ao cartão pode ser "sem desconto" ou desconto calculado na página:
+            # não dá para saber pelo JSON, então None até o dono conferir.
+            preco_pix=pix if pix and pix < vigente else None, preco_de=de if de and de > vigente else None,
             em_estoque=bool(p.get("available")), coletado_em=coletado_em,
         ))
     return ofertas

@@ -110,5 +110,18 @@ def test_regressao_kabum_preco_pelo_parcelado_arredondado_ficava_abaixo_do_pix()
          "sellerName": "KaBuM!", "price": 20097.41, "oldPrice": 20097.41, "priceWithDiscount": 20097.41,
          "maxInstallment": "10x de R$ 2.009,74", "offer": None}
     (o,) = PARSERS["kabum"](_pagina_kabum(p), KABUM_EM)
-    assert o.preco == Decimal("20097.41") and o.preco_pix == Decimal("20097.41")
+    assert o.preco == Decimal("20097.41")
+    assert o.preco_pix is None  # Pix = cartão no JSON: não confirmado (ver teste de 16:15)
     assert o.alertas() == []
+
+
+def test_regressao_kabum_pix_sem_desconto_no_json_nao_e_pix_confirmado():
+    """27/11 16:15: oferta nova com offer.priceWithDiscount == offer.price (4.499).
+    A tela do dono mostrou Pix 0,95 x cartão na oferta anterior; aqui o JSON não
+    sustenta o Pix. Até confirmar, Pix = None (o bruto fica para reprocessar)."""
+    p = {"code": 989702, "name": "PS5", "friendlyName": "ps5", "available": True, "sellerName": "KaBuM!",
+         "price": 4649.07, "oldPrice": 4649.07, "priceWithDiscount": 4649.07, "maxInstallment": "10x de R$ 449,90",
+         "offer": {"price": 4499, "priceWithDiscount": 4499, "startsAt": 0, "endsAt": 4_000_000_000}}
+    (o,) = PARSERS["kabum"](_pagina_kabum(p), KABUM_EM)
+    assert o.preco == Decimal("4499.00") and o.preco_pix is None
+    assert o.preco_de == Decimal("4649.07")
