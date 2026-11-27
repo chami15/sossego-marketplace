@@ -18,9 +18,9 @@ e previsível, sem esperar nenhuma loja.
 - `/busca/stream` (SSE por loja, Fase 7) só faz sentido se a busca ao vivo for
   aprovada.
 - O prompt diz que "os termos do onboarding já disparam a primeira coleta (e
-  entram em vigia)". Por ora eles ficam só em `perfil_interesse`. Ligar isso
-  é decisão do dono: um termo novo do onboarding precisaria entrar no plano do
-  worker com o mesmo `--dry-run`.
+  entram em vigia)". Eles ficam só em `perfil_interesse` (decisão do dono,
+  27/11). Com multiusuário, viram sugestões de vigia que só entram no worker
+  com aprovação.
 
 **Alternativa descartada.** Busca ao vivo na API com o cliente educado: o
 orçamento por loja (60/h) acabaria em poucas buscas, e a tela ficaria

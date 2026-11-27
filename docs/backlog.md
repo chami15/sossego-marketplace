@@ -37,20 +37,25 @@
   MacBook com specs escritas de outro jeito, Acer Aspire 5 com o modelo em
   ordem diferente). Só mexer com par rotulado novo, sem perder precisão.
 
+## Pagamento
+- BCB série 432 (Selic) respondeu 304 sem corpo em 27/11 (`docs/fontes/bcb.md`).
+  Se continuar, investigar os cabeçalhos do curl_cffi. A Selic é só referência.
+- Ordenar as ofertas da página do produto pelo custo efetivo. A calculadora já
+  existe; falta ligar na rota de produto, junto com a tela da Fase 8.
+
 ## API
 - Tipo de produto quando o título não diz: "Sony PlayStation 5 Edição Digital
   825GB 1 Controle" (Amazon) não aparece em "console ps5". "Drive de Disco
   para Console" e "PlayStation Portal Para Console" aparecem; "Analógico
   DualSense" (peça) aparece em "controle ps5". Só mexer em `TIPOS` com par
   rotulado, porque o matching também usa.
-- A ordem das ofertas na página do produto é provisória (à vista/Pix). O custo
-  efetivo entra com a calculadora (Fase 5).
 - `starlette.testclient` avisa que vai trocar `httpx` por `httpx2`. É só aviso,
   sem efeito hoje.
 
 ## Produto
-- **Decisão do dono:** os termos do onboarding entram no plano de coleta?
-  (ADR 003). Hoje ficam só em `perfil_interesse`.
+- Termos do onboarding **não** disparam coleta (decisão do dono, 27/11): ficam
+  em `perfil_interesse`. Quando houver multiusuário, viram uma fila de
+  "sugestões de vigia" que só entra no worker com aprovação do dono.
 - Login e conta.
 - Notificação push/e-mail/WhatsApp de queda de preço (`/vigias/quedas` prepara).
 - App mobile; cupons; LLM na recomendação; integração com o hubbia.

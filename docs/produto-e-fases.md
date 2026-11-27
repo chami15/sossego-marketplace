@@ -55,6 +55,20 @@ Atualizado em 27/11/2026 (Black Friday).
     nosso menor preço de 7 dias atrás, nunca contra o "de" da loja.
   - Adminer (`docker compose --profile ferramentas up -d adminer`) e CI no
     GitHub Actions, as duas pendências da Fase 1.
+- **Fase 5 (27/11, PR para revisão)** — `fase/05-pagamento`
+  - `pagamento/calculo.py`: funções puras em Decimal.
+    - Calcula taxa líquida, VP, desconto de equilíbrio, TIR do parcelado com
+      juros e IR regressivo pelo prazo de cada opção.
+    - Recomendação em uma frase.
+    - Os 4 casos de aceitação passam (4,63% no ato, 5,64% em 30 dias).
+  - `pagamento/taxas.py`: CDI (SGS 4389) e Selic (432) do BCB, pelo
+    `ClienteEducado`.
+    - Gravados em `taxa_referencia` (migration 005).
+    - O worker confere a cada hora e busca ~1x/dia.
+    - Se a API cair, fica a última taxa, com a data.
+  - `POST /api/v1/pagamento/simular`.
+  - Bug do `ClienteEducado` achado no BCB: 304 sem cópia em cache virava
+    resposta vazia. Teste de regressão escrito antes da correção.
 
 ### Ocorrências da Black Friday (27/11)
 
@@ -70,6 +84,5 @@ Atualizado em 27/11/2026 (Black Friday).
 
 ## Falta
 
-- Fase 5 (pagamento): calculadora, taxas do BCB e `/pagamento/simular`.
 - Fases 6 a 10 (telas, mais lojas, polimento).
 - Ajustes pequenos e pendências de loja: `docs/backlog.md`.
