@@ -81,8 +81,7 @@ def planejar(alvos: list[dict], lojas: list[str] | None = None, recon: bool = Fa
             cat = alvo.get("categoria", "eletronicos")
             novas = [
                 Tarefa(l.slug, l.url_busca(alvo["termo"]), "busca", alvo["termo"])
-                for l in LOJAS.values()
-                if cat in l.categorias and not (l.so_uma_palavra and " " in alvo["termo"].strip())
+                for l in LOJAS.values() if cat in l.categorias
             ]
         for t in novas:
             if not _liberada(t.loja, lojas, recon):

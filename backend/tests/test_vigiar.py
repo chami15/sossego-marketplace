@@ -177,9 +177,10 @@ async def test_regressao_resumo_dizia_ok_para_http_400():
 
 
 def test_regressao_ri_happy_jogo_ito_dava_400_toda_rodada():
-    """27/11: a API VTEX da Ri Happy responde 400 a 'jogo+ito' (termo com espaço).
-    Até confirmar a codificação, termo com espaço fica fora da Ri Happy; o resto segue."""
+    """27/11: a API VTEX da Ri Happy respondeu 400 a 'jogo+ito' e 206 a 'jogo%20ito'
+    (1 requisição de teste liberada pelo dono, 16:48). Espaço vai como %20."""
     alvos = [{"termo": "jogo ito", "categoria": "tabuleiro"}, {"termo": "dixit", "categoria": "tabuleiro"}]
     rh = [x.url for x in planejar(alvos) if x.loja == "ri-happy"]
-    assert len(rh) == 1 and "ft=dixit" in rh[0]
+    assert any("ft=jogo%20ito&" in u for u in rh) and any("ft=dixit&" in u for u in rh)
+    assert not any("+" in u for u in rh)
     assert any(x.loja == "ludopedia" and "jogo+ito" in x.url for x in planejar(alvos))
