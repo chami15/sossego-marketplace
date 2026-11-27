@@ -5,6 +5,7 @@
 # dezenas de anúncios numa única requisição, então vigiar por termo é o modo
 # mais leve para as lojas. URL direta é para quando você quer um anúncio exato.
 #
+# Opcional: lojas = ["ludopedia"] restringe o termo a essas lojas.
 # Adicionar: python -m coleta.vigiar --adicionar "air fryer" --categoria eletronicos
 # Categorias do MVP: eletronicos, tabuleiro
 
@@ -34,6 +35,8 @@ categoria = "eletronicos"
 termo = "dixit"
 categoria = "tabuleiro"
 
+# Ri Happy não vende o Ito (27/11): só Ludopedia.
 [[alvo]]
-termo = "jogo ito"
+termo = "ito"
 categoria = "tabuleiro"
+lojas = ["ludopedia"]

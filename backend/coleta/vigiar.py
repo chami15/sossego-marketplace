@@ -79,9 +79,13 @@ def planejar(alvos: list[dict], lojas: list[str] | None = None, recon: bool = Fa
             novas = [Tarefa(loja, url, "produto", None)]
         else:
             cat = alvo.get("categoria", "eletronicos")
+            # "lojas" restringe o termo (ex.: loja que não vende o produto).
+            so = alvo.get("lojas")
+            if so is not None and (erradas := sorted(set(so) - LOJAS.keys())):
+                raise ValueError(f"vigia.toml: loja desconhecida em {alvo['termo']!r}: {erradas}")
             novas = [
                 Tarefa(l.slug, l.url_busca(alvo["termo"]), "busca", alvo["termo"])
-                for l in LOJAS.values() if cat in l.categorias
+                for l in LOJAS.values() if cat in l.categorias and (so is None or l.slug in so)
             ]
         for t in novas:
             if not _liberada(t.loja, lojas, recon):

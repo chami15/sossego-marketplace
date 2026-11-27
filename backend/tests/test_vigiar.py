@@ -184,3 +184,18 @@ def test_regressao_ri_happy_jogo_ito_dava_400_toda_rodada():
     assert any("ft=jogo%20ito&" in u for u in rh) and any("ft=dixit&" in u for u in rh)
     assert not any("+" in u for u in rh)
     assert any(x.loja == "ludopedia" and "jogo+ito" in x.url for x in planejar(alvos))
+
+
+def test_alvo_com_lojas_busca_so_nelas():
+    """27/11: o dono tirou o Ito da Ri Happy (não vende) e deixou só na Ludopedia."""
+    alvos = [{"termo": "ito", "categoria": "tabuleiro", "lojas": ["ludopedia"]},
+             {"termo": "dixit", "categoria": "tabuleiro"}]
+    plano = planejar(alvos)
+    assert [x.loja for x in plano if x.termo == "ito"] == ["ludopedia"]
+    assert {x.loja for x in plano if x.termo == "dixit"} == {"ludopedia", "ri-happy"}
+
+
+def test_alvo_com_loja_desconhecida_falha_alto():
+    # Erro de digitação na vigia.toml não pode virar alvo que nunca é coletado.
+    with pytest.raises(ValueError, match="ludopdia"):
+        planejar([{"termo": "ito", "categoria": "tabuleiro", "lojas": ["ludopdia"]}])
