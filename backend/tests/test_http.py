@@ -467,3 +467,17 @@ async def test_regressao_400_em_busca_repetia_toda_hora_sem_aviso(relogio, trans
     with pytest.raises(MoldeQuebrado):
         await c.obter("https://loja.com/api?ft=jogo+ito", tipo="busca", validar=lambda resp: True)
     assert c.estado.breaker("loja.com").tipo_motivo == "molde_quebrado"
+
+
+async def test_regressao_304_sem_cache_virava_resposta_vazia(relogio, transporte):
+    """27/11, API do Banco Central: 304 sem termos mandado If-None-Match (nada
+    em cache). O cliente devolvia corpo vazio como se fosse resposta boa.
+    Sem cópia em cache, 304 é falha transitória: sem retry, sem breaker."""
+    url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json"
+    transporte.em(url, Resposta(304, {}, b"", url))
+    c = cliente(relogio, transporte)
+    with pytest.raises(FalhaTransitoria):
+        await c.obter(url, tipo="produto")
+    assert len(transporte.sem_robots()) == 1
+    b = c.estado.breaker("api.bcb.gov.br")
+    assert not b.desligada and b.pausada_ate == 0

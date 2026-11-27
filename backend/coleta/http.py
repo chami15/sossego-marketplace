@@ -294,6 +294,11 @@ class ClienteEducado:
                 self._classificar(r, "ok")
                 self._sucesso(loja)
                 return self._resultado(url, loja, em_cache, do_cache=True)
+            if r.status == 304:
+                # Sem cópia nossa, 304 não tem conteúdo para devolver (BCB, 27/11).
+                # Não é bloqueio nem molde: tenta de novo só na próxima rodada.
+                self._classificar(r, "outro")
+                raise FalhaTransitoria(f"{loja}: 304 sem cópia em cache")
 
             bloqueio = self._motivo_bloqueio(r)
             if bloqueio:
