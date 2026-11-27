@@ -42,6 +42,19 @@ Atualizado em 27/11/2026 (Black Friday).
     `match_motivo`, `grupo_manual`, `a_confirmar`).
   - Conjunto rotulado (110 pares reais): precisão 1,000, recall 0,891.
   - Nos dados de 27/11: 459 anúncios → 31 produtos em 2+ lojas.
+- **Fase 4 (27/11, PR para revisão)** — `fase/04-api`
+  - `api/`: FastAPI em `/api/v1` com as rotas da seção 8, exceto
+    `/pagamento/simular` (Fase 5) e `/busca/stream` (Fase 7). Também tem
+    `GET /perfis/{id}`. OpenAPI em `/docs`. `.\sossego.ps1 api` sobe em 127.0.0.1:8000.
+  - Nenhuma rota faz requisição a loja: a busca lê o histórico (ADR 003).
+  - Migration 004: perfil anônimo, categorias, 26 lojas do onboarding com ícone,
+    máximo de 3 categorias e 3 lojas também por trigger, vigia, `busca_log`, as
+    views `oferta_atual` e `preco_diario`, e `produto.termos`/`categoria_id`,
+    que o matching preenche.
+  - Card: melhor oferta vista nas últimas 48 h e com estoque; variação contra o
+    nosso menor preço de 7 dias atrás, nunca contra o "de" da loja.
+  - Adminer (`docker compose --profile ferramentas up -d adminer`) e CI no
+    GitHub Actions, as duas pendências da Fase 1.
 
 ### Ocorrências da Black Friday (27/11)
 
@@ -57,6 +70,6 @@ Atualizado em 27/11/2026 (Black Friday).
 
 ## Falta
 
-- Fase 4 (API): rotas da seção 8 do prompt; junto, adminer e CI da Fase 1.
-- Fases 4 a 10 (API, calculadora, telas, mais lojas, polimento).
+- Fase 5 (pagamento): calculadora, taxas do BCB e `/pagamento/simular`.
+- Fases 6 a 10 (telas, mais lojas, polimento).
 - Ajustes pequenos e pendências de loja: `docs/backlog.md`.
