@@ -457,3 +457,13 @@ async def test_regressao_desafio_akamai_da_amazon_era_molde_quebrado(relogio, tr
         await c.obter("https://loja.com/s?k=jogo+ito", tipo="busca", validar=lambda resp: False)
     b = c.estado.breaker("loja.com")
     assert b.tipo_motivo == "bloqueio" and b.sinais_seguidos == 1
+
+
+async def test_regressao_400_em_busca_repetia_toda_hora_sem_aviso(relogio, transporte):
+    """27/11: a Ri Happy respondeu 400 (37 bytes) à busca 'jogo ito' em toda rodada.
+    Como 400 não contava como molde, ninguém pausava nem avisava."""
+    transporte.em("https://loja.com/api?ft=jogo+ito", r(400, b'{"error":"bad"}'))
+    c = cliente(relogio, transporte)
+    with pytest.raises(MoldeQuebrado):
+        await c.obter("https://loja.com/api?ft=jogo+ito", tipo="busca", validar=lambda resp: True)
+    assert c.estado.breaker("loja.com").tipo_motivo == "molde_quebrado"

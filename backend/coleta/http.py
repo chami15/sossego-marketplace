@@ -406,8 +406,9 @@ class ClienteEducado:
             return None
         if _sucesso_http(r.status) and not validar(r):
             return "página válida, mas sem os dados esperados"
-        if r.status in (404, 410):
-            # Com validador = busca: URL inexistente é molde de URL errado.
+        if r.status in (400, 404, 410):
+            # Com validador = busca: URL inexistente ou recusada como malformada (400,
+            # Ri Happy "jogo ito" em 27/11) é molde de URL errado, não bloqueio.
             return f"HTTP {r.status}: molde de URL errado?"
         return None
 

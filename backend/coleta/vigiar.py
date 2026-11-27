@@ -166,7 +166,10 @@ async def executar_tarefa(cliente: ClienteEducado, t: Tarefa, token_ml: TokenML 
                 return "pulada: sem token do ML"
             cab = await token_ml.cabecalhos()
         res = await cliente.obter(t.url, tipo=t.tipo, validar=validar, cabecalhos=cab)
-        return "cache" if res.do_cache else f"ok {res.status} {len(res.corpo) // 1024} KB"
+        if res.do_cache:
+            return "cache"
+        rotulo = "ok" if 200 <= res.status < 300 else "HTTP"
+        return f"{rotulo} {res.status} {len(res.corpo) // 1024} KB"
     except ColetaPausada:
         raise
     except (LojaEmPausa, LojaDesligada, OrcamentoEsgotado) as e:

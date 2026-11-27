@@ -160,3 +160,17 @@ async def test_rodada_chama_gancho_no_fim_mesmo_interrompida(monkeypatch, tmp_pa
     cliente = SimpleNamespace(estado=estado, cfg=ConfigColeta(dir_dados=tmp_path), pausada=lambda: False)
     await v.rodada_da_loja(cliente, "amazon", ts, 0, random.Random(1), apos=gancho)
     assert len(feitas) == 1 and ganchos == ["amazon"]
+
+
+async def test_regressao_resumo_dizia_ok_para_http_400():
+    """27/11: o terminal mostrava 'ok 400 0 KB' para a Ri Happy."""
+    from types import SimpleNamespace
+
+    import coleta.vigiar as v
+
+    async def obter(url, **k):
+        return SimpleNamespace(do_cache=False, status=400, corpo=b"x" * 37)
+
+    t = v.Tarefa("ri-happy", "https://www.rihappy.com.br/p/1", "produto", None)
+    texto = await v.executar_tarefa(SimpleNamespace(obter=obter), t)
+    assert not texto.startswith("ok") and "400" in texto
