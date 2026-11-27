@@ -44,10 +44,10 @@ def test_regressao_status_dizia_ok_para_loja_sem_coleta_ha_horas(tmp_path, capsy
     cfg = ConfigColeta(dir_dados=tmp_path)
     e = Estado(tmp_path / "coleta.sqlite3")
     agora = time.time()
-    for loja, idade_h in [("amazon", 19), ("ludopedia", 0.5)]:
+    for loja, idade_h in [("kabum", 19), ("ludopedia", 0.5)]:
         e.registrar(loja=loja, url="https://x/busca", tipo="busca", inicio=agora - idade_h * 3600,
                     status=200, duracao_ms=1, bytes_=1, resultado="enviada", classe="ok")
     status(cfg)
     linhas = {l.split()[0]: l for l in capsys.readouterr().out.splitlines() if l.split()}
-    assert "ATRASADA" in linhas["amazon"]
+    assert "ATRASADA" in linhas["kabum"]
     assert linhas["ludopedia"].rstrip().endswith("ok")

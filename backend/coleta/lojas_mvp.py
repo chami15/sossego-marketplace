@@ -45,7 +45,9 @@ LOJAS: dict[str, Loja] = {
         Loja("amazon", "Amazon", ("amazon.com.br",),
              lambda t: f"https://www.amazon.com.br/s?k={quote_plus(t)}",
              120,  # mais propensa a captcha: metade da frequência, também na Black Friday
-             frozenset({"eletronicos", "tabuleiro"}), verificada=True),
+             frozenset({"eletronicos", "tabuleiro"}), verificada=True, ativa=False,
+             # 27/11 15:11: desafio Akamai (bm-verify). O dono decidiu desligar, não esperar o breaker.
+             motivo_inativa="bloqueio: desafio Akamai na BF (27/11); desligada pelo dono até segunda 30/11"),
         Loja("magalu", "Magalu", ("magazineluiza.com.br",),
              lambda t: f"https://www.magazineluiza.com.br/busca/{quote(t)}/", 60,
              frozenset({"eletronicos", "tabuleiro"}), ativa=False,

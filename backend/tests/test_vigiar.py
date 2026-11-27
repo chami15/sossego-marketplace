@@ -15,8 +15,8 @@ def test_categoria_decide_as_lojas():
 
 
 def test_url_direta_vira_tarefa_de_produto_da_loja_certa():
-    (t,) = planejar([{"url": "https://www.amazon.com.br/dp/B0GWNKJDCZ"}])
-    assert t.loja == "amazon" and t.tipo == "produto"
+    (t,) = planejar([{"url": "https://www.kabum.com.br/produto/989702/ps5"}])
+    assert t.loja == "kabum" and t.tipo == "produto"
 
 
 def test_loja_inativa_fica_fora_do_plano_ate_por_url_direta():
@@ -48,6 +48,15 @@ def test_kabum_ativo_so_com_eletronicos_a_cada_120_min():
     assert periodo_min("kabum") == 120
 
 
+def test_amazon_desligada_pelo_dono_ate_segunda_nem_por_url_direta():
+    # 27/11: desafio Akamai na BF. O dono desligou até segunda, sem deixar o breaker decidir.
+    from coleta.lojas_mvp import LOJAS
+
+    t = planejar([{"termo": "ps5"}, {"url": "https://www.amazon.com.br/dp/B0GWNKJDCZ"}])
+    assert "amazon" not in {x.loja for x in t}
+    assert not LOJAS["amazon"].ativa and "segunda" in LOJAS["amazon"].motivo_inativa
+
+
 def test_ml_nunca_planeja_html_so_api_oficial():
     t = planejar([{"termo": "ps5"}, {"termo": "dixit", "categoria": "tabuleiro"}])
     assert not any("lista.mercadolivre" in x.url for x in t)
@@ -59,8 +68,8 @@ def test_hosts_da_mesma_loja_dividem_orcamento():
 
 
 def test_filtro_de_lojas_e_sem_duplicatas():
-    t = planejar([{"termo": "ps5"}, {"termo": "ps5"}], lojas=["amazon"])
-    assert len(t) == 1 and t[0].loja == "amazon"
+    t = planejar([{"termo": "ps5"}, {"termo": "ps5"}], lojas=["kabum"])
+    assert len(t) == 1 and t[0].loja == "kabum"
 
 
 def test_dry_run_nao_chama_rede(capsys, monkeypatch):
@@ -72,7 +81,7 @@ def test_dry_run_nao_chama_rede(capsys, monkeypatch):
     monkeypatch.setattr(http, "TransporteCurlCffi", explode)
     imprimir_dry_run(planejar([{"termo": "ps5"}]), ConfigColeta())
     saida = capsys.readouterr().out
-    assert "nenhuma requisição" in saida and "amazon.com.br/s?k=ps5" in saida
+    assert "nenhuma requisição" in saida and "kabum.com.br/busca/ps5" in saida
 
 
 def test_validador_de_busca_recusa_pagina_pequena_ou_sem_termo():
