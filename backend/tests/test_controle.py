@@ -82,3 +82,33 @@ def test_admin_pausar_desligar_ligar_nao_apagam_dados(tmp_path, monkeypatch, cap
     admin(["ligar"])
     assert not (tmp_path / "DESLIGADO").exists()
     assert (tmp_path / "bruto").is_dir() and (tmp_path / "coleta.sqlite3").exists()
+
+
+def test_raiz_principal_por_argumento_vale_para_flag_e_dados(tmp_path, monkeypatch):
+    # A tarefa chama pythonw.exe direto (sem cmd, sem janela): a raiz vem por argumento.
+    def nunca(*a, **k):
+        raise AssertionError("ignorou --raiz-principal e subiu com os dados reais")
+
+    monkeypatch.setattr(v, "executar", nunca)
+    monkeypatch.delenv("SOSSEGO_DIR_DADOS", raising=False)
+    monkeypatch.setenv("SOSSEGO_RAIZ_PRINCIPAL", "nao-usar")  # monkeypatch restaura no fim
+    (tmp_path / "dados").mkdir()
+    (tmp_path / "dados" / "DESLIGADO").write_text("x", encoding="utf-8")
+    assert v.main(["--continuo", "--raiz-principal", str(tmp_path)]) == 0
+
+
+def test_saida_vai_para_arquivo_sem_console(tmp_path, monkeypatch):
+    # pythonw não tem stdout/stderr: sem --saida, o resumo e os erros se perderiam.
+    import sys
+
+    async def falso(tarefas, continuo):
+        print("rodada falsa")
+        print("aviso falso", file=sys.stderr)
+
+    monkeypatch.setattr(v, "executar", falso)
+    monkeypatch.setenv("SOSSEGO_DIR_DADOS", str(tmp_path))
+    antes = sys.stdout
+    assert v.main(["ps5", "--lojas", "kabum", "--uma-vez", "--saida", str(tmp_path / "tarefa.out")]) == 0
+    assert sys.stdout is antes
+    texto = (tmp_path / "tarefa.out").read_text(encoding="utf-8")
+    assert "rodada falsa" in texto and "aviso falso" in texto

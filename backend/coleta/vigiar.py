@@ -14,6 +14,7 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 import random
 import sys
 import time
@@ -287,7 +288,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--adicionar", action="store_true", help="grava os alvos em vigia.toml")
     p.add_argument("--recon", action="store_true",
                    help="inclui lojas 'em avaliação' citadas em --lojas (só com --uma-vez ou --dry-run)")
+    # A tarefa agendada chama pythonw.exe direto (sem cmd = sem janela no logon):
+    # o que o cmd fazia com `set` e `>>` vem por argumento.
+    p.add_argument("--raiz-principal", help="repositório de onde vêm .env e dados/ (o worker roda de um worktree)")
+    p.add_argument("--saida", help="anexa stdout/stderr neste arquivo (pythonw não tem console)")
     a = p.parse_args(argv)
+    if a.raiz_principal:
+        os.environ["SOSSEGO_RAIZ_PRINCIPAL"] = a.raiz_principal
     if a.recon and (a.continuo or not a.lojas):
         p.error("--recon exige --lojas e não vale para --continuo")
 
@@ -315,6 +322,21 @@ def main(argv: list[str] | None = None) -> int:
         print("SOSSEGO_COLETA_PAUSADA=true: nada a fazer.")
         return 1
 
+    if not a.saida:
+        return _rodar(a, cfg, tarefas)
+    import contextlib
+    import traceback
+
+    with open(a.saida, "a", encoding="utf-8", buffering=1) as f, \
+            contextlib.redirect_stdout(f), contextlib.redirect_stderr(f):
+        try:
+            return _rodar(a, cfg, tarefas)
+        except BaseException:
+            traceback.print_exc()  # sem console, o traceback só existe se for para o arquivo
+            raise
+
+
+def _rodar(a, cfg: ConfigColeta, tarefas: list[Tarefa]) -> int:
     from filelock import FileLock, Timeout
 
     cfg.dir_dados.mkdir(parents=True, exist_ok=True)
