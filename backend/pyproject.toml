@@ -10,6 +10,7 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "selectolax>=0.3",
     "pydantic>=2.7",
+    "rapidfuzz>=3.9",
 ]
 
 [dependency-groups]
