@@ -31,7 +31,17 @@ Atualizado em 27/11/2026 (Black Friday).
   - Vigiados: ps5, controle ps5, jogos ps5, nintendo switch 2, jogo nintendo
     switch, notebook 16gb ram, macbook (Kabum); dixit (Ludopedia, Ri Happy);
     ito (Ludopedia). ~10 req/h no total.
-- **Fase 3 (em andamento)** — `fase/03-matching`
+- **Fase 3 (27/11, PR para revisão)** — `fase/03-matching`
+  - `matching/normalizar.py`: título → tokens identificadores, plataforma,
+    capacidade, tipo, condição, cor (variação) e com/sem console.
+  - `matching/decidir.py`: GTIN → conflitos duros → tokens → "parecido"
+    (nunca agrupado). ADR 002.
+  - `matching/associar.py`: anúncio → produto com ligação completa; grupos
+    `[[produto]]` vencem; roda no fim de cada rodada do worker e por
+    `.\sossego.ps1 matching [--refazer]`. Migration 003 (`match_metodo`,
+    `match_motivo`, `grupo_manual`, `a_confirmar`).
+  - Conjunto rotulado (110 pares reais): precisão 1,000, recall 0,891.
+  - Nos dados de 27/11: 459 anúncios → 31 produtos em 2+ lojas.
 
 ### Ocorrências da Black Friday (27/11)
 
@@ -47,7 +57,6 @@ Atualizado em 27/11/2026 (Black Friday).
 
 ## Falta
 
-- Fase 3: normalização, GTIN, fuzzy, conjunto rotulado (precisão ≥ 0,95).
-- Fase 1 completa: API, web, adminer, CI.
+- Fase 4 (API): rotas da seção 8 do prompt; junto, adminer e CI da Fase 1.
 - Fases 4 a 10 (API, calculadora, telas, mais lojas, polimento).
 - Ajustes pequenos e pendências de loja: `docs/backlog.md`.

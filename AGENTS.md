@@ -56,7 +56,8 @@ Windows sem make: `.\sossego.ps1 <alvo>` faz o mesmo que `make <alvo>`.
 | `docker compose up -d db` | Postgres 16 em `127.0.0.1:5434` (a 5433 é de outro Postgres) |
 | `.\sossego.ps1 migrar` | aplica `backend/db/migrations/NNN_*.sql` pendentes |
 | `.\sossego.ps1 historico` | bruto → anúncios + snapshots (idempotente, com dedupe); o worker já roda isso no fim de cada rodada |
-| `.\sossego.ps1 atualizar-worker [ref]` | tag `worker-AAAAMMDD-HHMM` no ref (padrão `fase/02-coleta-e-historico`), worktree nela, testes lá, reinicia |
+| `.\sossego.ps1 matching [--refazer]` | anúncio → produto (ADR 002); o worker já roda no fim de cada rodada; `--refazer` quando a regra mudar |
+| `.\sossego.ps1 atualizar-worker [ref]` | tag `worker-AAAAMMDD-HHMM` no ref (padrão: a branch atual), worktree nela, testes lá, reinicia |
 
 **Tarefa agendada "Sossego Worker"** (sem admin): `scripts\registrar-worker.ps1`
 registra; gatilhos no logon + a cada 15 min. Roda via `conhost.exe --headless`
@@ -85,4 +86,5 @@ Testes de banco usam `sossego_test`, recriado a cada sessão: o Postgres precisa
 - `backend/coleta/estado.py` — estado da coleta em SQLite (`dados/coleta.sqlite3`).
 - `backend/coleta/lojas_mvp.py` — lojas, moldes de URL de busca, frequência.
 - `backend/coleta/vigiar.py` — CLI/worker; `admin.py` — operação.
+- `backend/matching/` — normalizar → decidir → associar; `tests/fixtures/matching.csv` é o gabarito.
 - `dados/bruto/<loja>/<dia>/*.json.gz` — resposta crua (landing zone, fora do git).

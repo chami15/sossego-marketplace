@@ -27,6 +27,16 @@
 - Molde quebrado pausar só a URL, não a loja inteira (debate).
 - Fechar as conexões SQLite (`Estado`): ResourceWarning nos testes, inofensivo.
 
+## Matching
+- Gravar a cor (já extraída por `normalizar`) em `anuncio.variacao` quando a
+  loja não manda; o seletor de variação da Fase 8 precisa disso.
+- Dixit Disney: a Ri Happy tem dois EAN (3558380106944 e 3558387010077) e o
+  matching juntou o Ludopedia "Dixit: Disney" com o de EAN 3558387010077 pelo
+  título. Confirmar edição, como no Dixit base.
+- Recall: casos que ficam separados (Sports Resort com descrição no título,
+  MacBook com specs escritas de outro jeito, Acer Aspire 5 com o modelo em
+  ordem diferente). Só mexer com par rotulado novo, sem perder precisão.
+
 ## Produto
 - Login e conta.
 - Notificação push/e-mail/WhatsApp de queda de preço (`/vigias/quedas` prepara).
