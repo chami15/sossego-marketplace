@@ -18,7 +18,7 @@ from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
 from coleta.base import Oferta, brl, dec
 
-PARSER_VERSAO = {"amazon": "1", "ludopedia": "1", "ri-happy": "1", "kabum": "1"}
+PARSER_VERSAO = {"amazon": "1", "ludopedia": "1", "ri-happy": "1", "kabum": "2"}
 
 
 class SemOfertas(Exception):
@@ -145,8 +145,10 @@ log = logging.getLogger("sossego.parsers")
 
 
 def kabum(corpo: str, coletado_em: datetime) -> list[Oferta]:
-    """Só grava o que está confirmado (docs/fontes/kabum.md): total no cartão
-    conferido contra o parcelamento literal. Pix, "de" e sem juros = None."""
+    """Mapeamento conferido na tela pelo dono em 27/11 (docs/fontes/kabum.md):
+    total no cartão = parcelamento literal (e tem que bater com o preço vigente);
+    Pix = priceWithDiscount da oferta ativa (ou da raiz); "de" = oldPrice.
+    Sem juros continua desconhecido (None)."""
     m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', corpo, re.S)
     if not m:
         raise SemOfertas("kabum: sem __NEXT_DATA__")
@@ -168,6 +170,8 @@ def kabum(corpo: str, coletado_em: datetime) -> list[Oferta]:
         oferta = p.get("offer") or {}
         ativa = oferta.get("price") and (oferta.get("startsAt") or 0) <= agora < (oferta.get("endsAt") or 0)
         vigente = dec(oferta["price"]) if ativa else dec(p.get("price"))
+        pix = dec(oferta.get("priceWithDiscount")) if ativa else dec(p.get("priceWithDiscount"))
+        de = dec(p.get("oldPrice"))
         if vigente is None or abs(total - vigente) > Decimal("0.05"):
             log.warning(json.dumps({"evento": "kabum_preco_inconsistente", "code": p.get("code"),
                                     "parcelado": str(total), "vigente": str(vigente)}))
@@ -178,6 +182,7 @@ def kabum(corpo: str, coletado_em: datetime) -> list[Oferta]:
             url=f"https://www.kabum.com.br/produto/{p['code']}/{p.get('friendlyName', '')}",
             titulo=p.get("name", ""), imagem=img, marca=(p.get("manufacturer") or {}).get("name"),
             vendedor=p.get("sellerName"), preco=total, parcelas_max=n, parcela_valor=valor,
+            preco_pix=pix or None, preco_de=de if de and de > total else None,
             em_estoque=bool(p.get("available")), coletado_em=coletado_em,
         ))
     return ofertas

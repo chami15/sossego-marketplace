@@ -57,11 +57,14 @@ def test_ri_happy_vtex_com_ean_pix_e_parcelas():
 KABUM_EM = datetime(2026, 11, 26, 22, 25, tzinfo=timezone.utc)  # hora da coleta real
 
 
-def test_kabum_grava_so_o_confirmado():
+def test_kabum_pix_e_de_conferidos_na_tela():
+    # Tela em 27/11 (dono): Pix 4.274,05 = 0,95 x 4.499; "de" 4.893,76; 10x 449,90.
+    # Mesmo padrão no JSON de 26/11: offer.priceWithDiscount = 0,95 x offer.price.
     o = por_id(PARSERS["kabum"](fixture("kabum", "busca_ps5.html"), KABUM_EM))["989702"]
     assert o.preco == Decimal("4599.00")  # 10 x 459,90 == offer.price
     assert o.parcelas_max == 10 and o.parcela_valor == Decimal("459.90")
-    assert o.preco_pix is None and o.preco_de is None and o.parcelas_sem_juros is None
+    assert o.preco_pix == Decimal("4369.05") and o.preco_de == Decimal("4893.76")
+    assert o.parcelas_sem_juros is None  # a tela não disse; continua desconhecido
     assert o.em_estoque and o.vendedor == "KaBuM!"
     assert o.url.startswith("https://www.kabum.com.br/produto/989702/")
 
