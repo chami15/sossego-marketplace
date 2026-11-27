@@ -6,6 +6,20 @@ param([Parameter(Position = 0)][string]$alvo = "test", [Parameter(Position = 1)]
 $backend = Join-Path $PSScriptRoot "backend"
 $dados = Join-Path $PSScriptRoot "dados"
 
+function Parar-ProcessosWorker {
+    # Só o worker, pela linha de comando: nunca por PID solto (pode ter sido
+    # reaproveitado). python.exe (cmd/terminal) ou pythonw.exe (tarefa, sem janela);
+    # o launcher do venv e o filho têm a mesma linha, os dois saem.
+    $procs = @(Get-CimInstance Win32_Process -Filter "Name='python.exe' OR Name='pythonw.exe'" |
+        Where-Object { $_.CommandLine -match 'coleta\.vigiar' -and $_.CommandLine -match '--continuo' })
+    foreach ($p in $procs) {
+        Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+        Write-Host "worker encerrado (pid $($p.ProcessId))"
+    }
+    Remove-Item (Join-Path $dados "worker.json") -ErrorAction SilentlyContinue
+    return $procs.Count
+}
+
 Push-Location $backend
 try {
     switch ($alvo) {
@@ -54,12 +68,11 @@ try {
                 Write-Output "worktree em $tag ($($commit.Substring(0,7))). Worker DESLIGADO: não reiniciei. Suba com .\sossego.ps1 ligar"
                 return
             }
-            # Reinicia: mata o worker atual (pid do batimento) e dispara a tarefa.
-            $bat = Join-Path $dados "worker.json"
-            if (Test-Path $bat) {
-                $wpid = (Get-Content $bat -Raw | ConvertFrom-Json).pid
-                Stop-Process -Id $wpid -Force -ErrorAction SilentlyContinue
+            # Confere a tarefa ANTES de encerrar: sem ela, o worker morreria e não voltaria.
+            if (-not (Get-ScheduledTask -TaskName "Sossego Worker" -ErrorAction SilentlyContinue)) {
+                throw "worktree em $tag, mas a tarefa 'Sossego Worker' não existe; worker atual NÃO foi tocado. Rode scripts\registrar-worker.ps1 (sem admin)."
             }
+            Parar-ProcessosWorker | Out-Null
             for ($i = 0; $i -lt 20 -and (Get-ScheduledTask "Sossego Worker").State -eq "Running"; $i++) { Start-Sleep -Milliseconds 500 }
             Start-ScheduledTask -TaskName "Sossego Worker"
             Write-Output "worker agora em $tag ($($commit.Substring(0,7))). Confira: .\sossego.ps1 status"
@@ -75,12 +88,8 @@ try {
         # tarefa agendada (15 min, boot, logon) sobe e sai na hora. Nada é apagado.
         "desligar" {
             uv run python -m coleta.admin desligar
-            # Só o worker, pela linha de comando: nunca por PID solto (pode ter sido reaproveitado).
-            $procs = @(Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
-                Where-Object { $_.CommandLine -match 'coleta\.vigiar' -and $_.CommandLine -match '--continuo' })
-            foreach ($p in $procs) { Stop-Process -Id $p.ProcessId -Force; Write-Output "worker encerrado (pid $($p.ProcessId))" }
-            if ($procs.Count -eq 0) { Write-Output "nenhum worker rodando" }
-            Remove-Item (Join-Path $dados "worker.json") -ErrorAction SilentlyContinue
+            $n = Parar-ProcessosWorker
+            if ($n -eq 0) { Write-Output "nenhum worker rodando" }
         }
         "ligar" {
             uv run python -m coleta.admin ligar
