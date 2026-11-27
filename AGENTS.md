@@ -59,8 +59,9 @@ Windows sem make: `.\sossego.ps1 <alvo>` faz o mesmo que `make <alvo>`.
 | `.\sossego.ps1 atualizar-worker [ref]` | tag `worker-AAAAMMDD-HHMM` no ref (padrão `fase/02-coleta-e-historico`), worktree nela, testes lá, reinicia |
 
 **Tarefa agendada "Sossego Worker"** (sem admin): `scripts\registrar-worker.ps1`
-registra; gatilhos no logon + a cada 15 min. Roda `pythonw.exe` direto, sem
-janela; a saída vai para `dados\tarefa.out`. Fechar terminal não mata o worker.
+registra; gatilhos no logon + a cada 15 min. Roda via `conhost.exe --headless`
+(sem janela, sem aba no Windows Terminal); a saída vai para `dados\tarefa.out`.
+Fechar terminal não mata o worker.
 
 **O worker roda de `..\sossego-worker`** (git worktree em commit fixo), nunca
 desta pasta: checkout aqui não muda o que roda. `.env` e `dados\` continuam
