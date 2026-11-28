@@ -1,60 +1,514 @@
+/* Página de produto: galeria | centro | lateral fixa ao rolar. Empilha no celular. */
 .produto {
-  width: 100%;
-  max-width: 960px;
-  margin: 0 auto;
-  padding: var(--esp-6) var(--esp-6) var(--esp-7);
-}
-.produto__titulo {
-  margin-bottom: var(--esp-5);
-  font-size: 2rem;
-}
-.ofertas {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--linha);
-}
-.oferta {
   display: grid;
-  grid-template-columns: 24px 1fr auto auto auto;
-  align-items: center;
-  gap: var(--esp-3);
-  min-height: 64px;
-  border-bottom: 1px solid var(--linha);
+  grid-template-columns: minmax(0, 3fr) minmax(0, 6fr) minmax(0, 4fr);
+  align-items: start;
+  gap: var(--esp-5);
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: var(--esp-5) var(--esp-6) var(--esp-6);
 }
-.oferta--velha {
+
+/* ---------- galeria ---------- */
+.galeria {
+  position: sticky;
+  top: var(--esp-3);
+}
+.galeria__principal {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  background: var(--cinza-vitrine);
+  border-radius: var(--canto);
   color: var(--grafite);
 }
-.oferta__preco {
-  font-family: var(--fonte-display);
-  font-size: 1.375rem;
+.galeria__principal img {
+  max-width: 84%;
+  max-height: 84%;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+.galeria__miniaturas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-2);
+  margin-top: var(--esp-2);
+}
+.galeria__mini {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  padding: 4px;
+  background: var(--cinza-vitrine);
+  border: 2px solid transparent;
+  border-radius: var(--canto);
+  cursor: pointer;
+}
+.galeria__mini img {
+  max-width: 100%;
+  max-height: 100%;
+  mix-blend-mode: multiply;
+}
+.galeria__mini--atual {
+  border-color: var(--azul-royal);
+}
+
+/* ---------- centro ---------- */
+.produto__centro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  min-width: 0;
+}
+.produto__marca {
+  margin-bottom: calc(-1 * var(--esp-3));
+  font-size: var(--t-pequeno);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--grafite);
+}
+.produto__titulo {
+  font-size: 2rem;
+}
+.produto__secao {
+  margin-bottom: var(--esp-2);
+  font-size: 1.125rem;
+}
+.produto__conta {
+  font-weight: 400;
+  color: var(--grafite);
+}
+
+.variacao {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.variacao legend {
+  margin-bottom: var(--esp-2);
+  font-size: var(--t-pequeno);
   font-weight: 600;
   color: var(--azul-profundo);
 }
-.oferta__pix {
-  font-size: var(--t-pequeno);
-  color: var(--queda);
-}
-.oferta__link {
-  display: inline-flex;
-  align-items: center;
+.variacao__opcoes,
+.periodos {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--esp-1);
+}
+.variacao__opcoes .opcao-unica span,
+.periodos .opcao-unica span {
+  min-height: 40px;
+  padding: 0 var(--esp-3);
   font-size: var(--t-pequeno);
 }
 
+.melhor {
+  padding: var(--esp-3);
+  background: var(--branco);
+  border: 2px solid var(--azul-royal);
+  border-radius: var(--canto);
+}
+.melhor__rotulo {
+  font-size: var(--t-rotulo);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--azul-royal);
+}
+.melhor__linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--esp-1) var(--esp-4);
+  margin: var(--esp-1) 0 var(--esp-3);
+}
+.melhor__preco {
+  font-variation-settings: "opsz" 144;
+  font-size: var(--t-preco-pagina);
+  line-height: 1;
+  letter-spacing: 0;
+  color: var(--azul-profundo);
+}
+.melhor__detalhe {
+  font-size: var(--t-pequeno);
+  color: var(--grafite);
+}
+.melhor__loja {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+  margin-top: 2px;
+  color: var(--tinta);
+  font-weight: 600;
+}
+.melhor__comprar {
+  width: 100%;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.tabela-rolagem {
+  /* relative: o .so-leitor (absoluto) do cabeçalho fica preso aqui; sem isso ele
+     escapava para o <html> e a página rolava de lado no celular. */
+  position: relative;
+  overflow-x: auto;
+}
+.ofertas {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-pequeno);
+}
+.ofertas th,
+.ofertas td {
+  padding: var(--esp-2);
+  border-bottom: 1px solid var(--linha);
+  text-align: left;
+  vertical-align: middle;
+}
+.ofertas__preco,
+.ofertas__pix,
+.ofertas__acao {
+  white-space: nowrap;
+}
+.ofertas thead th {
+  font-size: var(--t-rotulo);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--grafite);
+}
+.ofertas tbody th {
+  font-weight: 600;
+}
+.ofertas__loja {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+}
+.ofertas__vendedor {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--grafite);
+}
+.ofertas__preco {
+  font-weight: 600;
+}
+.ofertas__pix {
+  color: var(--queda);
+  font-weight: 600;
+}
+.ofertas__melhor {
+  background: var(--azul-nevoa);
+}
+.ofertas__velha {
+  color: var(--grafite);
+}
+.ofertas__ir {
+  min-height: 36px;
+  padding: 0 var(--esp-2);
+  font-size: var(--t-pequeno);
+  text-decoration: none;
+}
+
+.sobre__texto {
+  max-width: 68ch;
+  margin-bottom: var(--esp-3);
+  white-space: pre-line;
+}
+.sobre__specs {
+  display: grid;
+  margin: 0;
+  border-top: 1px solid var(--linha);
+}
+.sobre__specs div {
+  display: grid;
+  grid-template-columns: 40% 1fr;
+  gap: var(--esp-3);
+  padding: var(--esp-2) 0;
+  border-bottom: 1px solid var(--linha);
+  font-size: var(--t-pequeno);
+}
+.sobre__specs dt {
+  color: var(--grafite);
+}
+.sobre__specs dd {
+  margin: 0;
+}
+
+/* ---------- lateral fixa ---------- */
+.lateral {
+  position: sticky;
+  top: var(--esp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  padding: var(--esp-3);
+  background: var(--branco);
+  border: 1px solid var(--linha);
+  border-radius: var(--canto);
+}
+.lateral__titulo {
+  margin-bottom: var(--esp-2);
+  font-size: 1.125rem;
+}
+.lateral__menor {
+  margin-top: var(--esp-3);
+  font-size: var(--t-pequeno);
+}
+
+.grafico {
+  margin-top: var(--esp-3);
+}
+.grafico--carregando {
+  height: 240px;
+  background: var(--cinza-vitrine);
+}
+.grafico__legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-1) var(--esp-3);
+  margin: 0 0 var(--esp-2);
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+}
+.grafico__legenda li {
+  display: inline-flex;
+  white-space: nowrap;
+  align-items: center;
+  gap: 6px;
+}
+.grafico__area {
+  position: relative;
+}
+.grafico__area > svg,
+.grafico--um-ponto svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: pan-y;
+}
+.grafico__grade {
+  stroke: var(--linha);
+  stroke-width: 1;
+}
+.grafico__eixo {
+  font-size: 11px;
+  fill: var(--grafite);
+}
+.grafico__mira {
+  stroke: var(--grafite);
+  stroke-width: 1;
+}
+.grafico__dica {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  min-width: 168px;
+  padding: var(--esp-2);
+  background: var(--branco);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--canto);
+  box-shadow: 0 4px 12px rgb(16 24 64 / 0.1);
+  font-size: 0.8125rem;
+  pointer-events: none;
+}
+.grafico__dica p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.grafico__dica-data {
+  margin-bottom: 2px;
+  color: var(--grafite);
+}
+.grafico__aviso {
+  margin-top: var(--esp-2);
+  font-size: var(--t-pequeno);
+  color: var(--grafite);
+}
+.grafico__tabela {
+  margin-top: var(--esp-2);
+  font-size: 0.8125rem;
+}
+.grafico__tabela summary {
+  cursor: pointer;
+  color: var(--azul-royal);
+}
+.grafico__tabela table {
+  width: 100%;
+  margin-top: var(--esp-2);
+  border-collapse: collapse;
+}
+.grafico__tabela th,
+.grafico__tabela td {
+  padding: 4px var(--esp-1);
+  border-bottom: 1px solid var(--linha);
+  text-align: left;
+}
+
+.olho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--esp-2);
+  margin-top: var(--esp-3);
+}
+.olho__alvo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-1);
+  font-size: var(--t-pequeno);
+}
+.olho__alvo input,
+.calc__campos input {
+  width: 120px;
+  height: 44px;
+  padding: 0 var(--esp-2);
+  background: var(--branco);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--canto);
+}
+.olho__status {
+  flex-basis: 100%;
+  font-size: var(--t-pequeno);
+  color: var(--grafite);
+}
+
+.calc {
+  padding-top: var(--esp-3);
+  border-top: 1px solid var(--linha);
+}
+.calc__campos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-2);
+  margin-bottom: var(--esp-3);
+}
+.calc__campos label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-1);
+  font-size: var(--t-pequeno);
+}
+.calc__campos input[type="number"] {
+  width: 88px;
+}
+.calc__veredito {
+  margin-bottom: var(--esp-2);
+  font-weight: 600;
+  color: var(--azul-profundo);
+}
+.calc__opcoes {
+  display: grid;
+  gap: var(--esp-1);
+  margin: 0;
+}
+.calc__opcao {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--esp-2);
+  padding: var(--esp-2);
+  border: 1px solid var(--linha);
+  border-radius: var(--canto);
+  font-size: var(--t-pequeno);
+}
+.calc__opcao--melhor {
+  border: 2px solid var(--azul-royal);
+  background: var(--azul-nevoa);
+}
+.calc__opcao dd {
+  margin: 0;
+  font-weight: 600;
+}
+.calc__opcao dd span {
+  font-weight: 400;
+  color: var(--grafite);
+}
+.calc__nota {
+  margin-top: var(--esp-2);
+  font-size: 0.8125rem;
+  color: var(--grafite);
+}
+
+.parecidos {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: var(--esp-5) var(--esp-6) var(--esp-7);
+  border-top: 1px solid var(--linha);
+}
+
+@media (max-width: 1199px) {
+  .produto {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  }
+  .lateral {
+    grid-column: 1 / -1;
+    position: static;
+  }
+}
+/* Celular: cada oferta vira um bloco (loja em cima, valores rotulados, botão
+   inteiro embaixo); o botão "Ir para a loja" nunca fica escondido na rolagem. */
+@media (max-width: 599px) {
+  .ofertas thead {
+    display: none;
+  }
+  .ofertas tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: var(--esp-2) 0;
+    border-bottom: 1px solid var(--linha);
+  }
+  .ofertas tbody th,
+  .ofertas__acao {
+    grid-column: 1 / -1;
+  }
+  .ofertas th,
+  .ofertas td {
+    padding: var(--esp-1) var(--esp-2);
+    border: 0;
+  }
+  .ofertas td[data-rotulo]::before {
+    content: attr(data-rotulo);
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--grafite);
+  }
+  .ofertas__ir {
+    width: 100%;
+    justify-content: center;
+  }
+}
 @media (max-width: 959px) {
   .produto {
-    padding: var(--esp-4) var(--esp-3);
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--esp-4);
+    padding: var(--esp-3) var(--esp-3) var(--esp-5);
+  }
+  .galeria {
+    position: static;
+  }
+  .galeria__principal {
+    max-height: 60vh;
+    aspect-ratio: auto;
+    height: 320px;
   }
   .produto__titulo {
     font-size: 1.5rem;
   }
-  .oferta {
-    grid-template-columns: 24px 1fr auto;
-    padding: var(--esp-2) 0;
+  .melhor__preco {
+    font-size: 2.25rem;
   }
-  .oferta__pix,
-  .oferta__link {
-    grid-column: 2 / -1;
+  .parecidos {
+    padding: var(--esp-4) var(--esp-3) var(--esp-6);
   }
 }
