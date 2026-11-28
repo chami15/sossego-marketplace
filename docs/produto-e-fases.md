@@ -121,7 +121,7 @@ Atualizado em 27/11/2026 (Black Friday).
     24h/7d/30d/tudo, mira com tooltip, tabela; "Menor preço que vimos"; "Ficar
     de olho" com preço-alvo; calculadora Pix × parcelado; parecidos.
   - API: `GET /perfis/{id}/vigias`; `imagem_local` no card e na oferta.
-  - Testes: 230 backend, 21 e2e (9 novos da página de produto), 5 unitários.
+  - Testes: 231 backend, 21 e2e (9 novos da página de produto), 5 unitários.
   - Prints em `docs/prints/fase-08/` (1440 e 390 px).
 
 ### Ocorrências da Black Friday (27/11)

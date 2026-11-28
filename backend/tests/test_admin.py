@@ -28,6 +28,22 @@ def test_regressao_status_dizia_ok_para_loja_so_sondada_fora_do_worker(tmp_path,
     assert "fora do worker" in linha and not linha.rstrip().endswith("ok")
 
 
+def test_regressao_status_chamava_cdn_desligado_de_so_sondagem(tmp_path, capsys):
+    """27/11: o CDN de imagens da Kabum, desligado na mão, aparecia como "fora do
+    worker (só sondagem; bloqueio até ...)": parecia pausa curta, e é o worker
+    que baixa as imagens."""
+    cfg = ConfigColeta(dir_dados=tmp_path)
+    e = Estado(tmp_path / "coleta.sqlite3")
+    e.registrar(loja="cdn:images.kabum.com.br", url="https://images.kabum.com.br/robots.txt", tipo="robots",
+                inicio=time.time(), status=403, duracao_ms=1, bytes_=1, resultado="enviada")
+    b = e.breaker("cdn:images.kabum.com.br")
+    b.desligada, b.pausada_ate, b.motivo = True, time.time() + 600, "robots.txt respondeu 403"
+    e.salvar_breaker(b)
+    status(cfg)
+    linha = next(l for l in capsys.readouterr().out.splitlines() if l.startswith("cdn:images.kabum"))
+    assert "DESLIGAD" in linha and "sondagem" not in linha and "religar cdn:images.kabum.com.br" in linha
+
+
 def test_regressao_status_desligado_mandava_usar_worker_em_vez_de_ligar(tmp_path, capsys):
     """26/11: com dados/DESLIGADO, o status sugeria `.\\sossego.ps1 worker`, que não sobe nada."""
     cfg = ConfigColeta(dir_dados=tmp_path)

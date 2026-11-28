@@ -28,9 +28,9 @@ Base empilhada; depois do merge da 07, a base vira a `main`. No merge, tag `v0.8
 - API: `GET /perfis/{id}/vigias`; `imagem_local` em card e oferta.
 
 ## Testado
-- 230 testes do backend (novos: orçamento por chave, imagem fora do bruto e do
+- 231 testes do backend (novos: orçamento por chave, imagem fora do bruto e do
   cache, HTML no lugar de imagem = molde quebrado, 13 de imagens com a
-  regressão do dry-run com CDN desligado, rota de imagem, vigias do perfil).
+  regressão do dry-run com CDN desligado, rota de imagem, vigias do perfil, regressão do status com CDN desligado).
 - 21 testes Playwright (9 novos: produto → Ir para a loja, frete no custo,
   variação, gráfico, um ponto só, ficar de olho, vigiar no card, calculadora,
   parecidos) + regressão de largura no celular também na página de produto.

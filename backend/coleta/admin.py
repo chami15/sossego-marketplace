@@ -95,6 +95,14 @@ def situacao_loja(loja: str, estado: Estado, agora: float) -> tuple[str, str, st
     if cadastro and not cadastro.ativa:
         # Prioridade máxima: loja fora do worker nunca aparece como "ok".
         return "inativa", f"INATIVA ({cadastro.motivo_inativa})", None
+    if loja.startswith("cdn:"):
+        # CDN de imagens (coleta/imagens.py): é o worker que baixa, a cada 30 min.
+        if b.desligada:
+            return ("desligada", f"DESLIGADO (imagens): {b.motivo}; religar {loja}",
+                    f"{loja}: imagens desligadas ({b.motivo}). Religar: .\\sossego.ps1 religar {loja}")
+        if b.pausada_ate > agora:
+            return "bloqueio", f"imagens em pausa até {_hora(b.pausada_ate)}: {b.motivo}", None
+        return "ok", "imagens (worker)", None
     if cadastro is None:
         # Só sondada (recon/detecção): nada é coletado dela.
         pausa = f"; {b.tipo_motivo} até {_hora(b.pausada_ate)}" if b.pausada_ate > agora else ""
