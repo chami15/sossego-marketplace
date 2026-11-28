@@ -1,7 +1,7 @@
 """API do Sossego (/api/v1). Só lê e grava o banco: nenhuma rota faz
 requisição a loja. Coleta continua sendo do worker, com o cliente educado.
 
-    uvicorn api.app:app --port 8000      (ou .\\sossego.ps1 api)
+    uvicorn api.app:app --port 8020      (ou .\\sossego.ps1 api)
 """
 
 from __future__ import annotations

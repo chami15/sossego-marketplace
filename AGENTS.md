@@ -63,7 +63,7 @@ Windows sem make: `.\sossego.ps1 <alvo>` faz o mesmo que `make <alvo>`.
 | `.\sossego.ps1 migrar` | aplica `backend/db/migrations/NNN_*.sql` pendentes |
 | `.\sossego.ps1 historico` | bruto → anúncios + snapshots (idempotente, com dedupe); o worker já roda isso no fim de cada rodada |
 | `.\sossego.ps1 matching [--refazer]` | anúncio → produto (ADR 002); o worker já roda no fim de cada rodada; `--refazer` quando a regra mudar |
-| `.\sossego.ps1 api` | API em http://127.0.0.1:8000 (OpenAPI em `/docs`); só lê/grava o banco, nunca chama loja |
+| `.\sossego.ps1 api` | API em http://127.0.0.1:8020 (OpenAPI em `/docs`; a 8000 é do hub_agente); só lê/grava o banco, nunca chama loja |
 | `cd backend; uv run python -m pagamento.taxas [--dry-run]` | taxas do BCB agora (o worker já faz ~1x/dia) |
 | `cd backend; uv run python -m coleta.imagens [--dry-run]` | imagens de produto: volume por CDN (dry-run) ou uma passada; o worker já faz a cada 30 min |
 | `cd frontend; npm run test:unit` | testes do formatador (`node --test`, sem rede) |

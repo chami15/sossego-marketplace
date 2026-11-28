@@ -42,4 +42,4 @@ matching:
 
 # Só em 127.0.0.1: API de uso pessoal, sem autenticação.
 api:
-	cd backend && uv run uvicorn api.app:app --host 127.0.0.1 --port 8000
+	cd backend && uv run uvicorn api.app:app --host 127.0.0.1 --port 8020

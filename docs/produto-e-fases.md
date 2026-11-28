@@ -45,7 +45,7 @@ Atualizado em 27/11/2026 (Black Friday).
 - **Fase 4 (27/11, PR para revisão)** — `fase/04-api`
   - `api/`: FastAPI em `/api/v1` com as rotas da seção 8, exceto
     `/pagamento/simular` (Fase 5) e `/busca/stream` (Fase 7). Também tem
-    `GET /perfis/{id}`. OpenAPI em `/docs`. `.\sossego.ps1 api` sobe em 127.0.0.1:8000.
+    `GET /perfis/{id}`. OpenAPI em `/docs`. `.\sossego.ps1 api` sobe em 127.0.0.1:8020 (a 8000 é do hub_agente).
   - Nenhuma rota faz requisição a loja: a busca lê o histórico (ADR 003).
   - Migration 004: perfil anônimo, categorias, 26 lojas do onboarding com ícone,
     máximo de 3 categorias e 3 lojas também por trigger, vigia, `busca_log`, as
