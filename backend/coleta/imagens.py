@@ -11,6 +11,7 @@ Cada CDN é uma chave própria no cliente (`cdn:<host>`), com orçamento própri
 tem o CDN tocado. Bloqueio ou conteúdo inesperado = aquele CDN para na hora.
 
 Uso: python -m coleta.imagens [--dry-run]
+     python -m coleta.imagens --tentativa-manual <host> [--dry-run]   # só com o "pode" do dono
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ import io
 import re
 import sys
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -95,8 +96,8 @@ ORDER BY alvo.url, alvo.prioridade
 """
 
 
-def cliente_de_imagens(estado, transporte, cfg, **extra) -> ClienteEducado:
-    return ClienteEducado(estado, transporte, cfg, loja_de=lambda host: f"cdn:{host}",
+def cliente_de_imagens(estado, transporte, cfg, prefixo: str = "cdn", **extra) -> ClienteEducado:
+    return ClienteEducado(estado, transporte, cfg, loja_de=lambda host: f"{prefixo}:{host}",
                           orcamento_de=lambda chave: (POR_HORA, POR_DIA) if chave.startswith("cdn:") else None,
                           **extra)
 
@@ -183,6 +184,58 @@ def lojas_paradas(estado, agora: float) -> set[str]:
     return paradas
 
 
+def cfg_manual(cfg):
+    """Tentativa manual: sem retry (o dono autorizou UMA requisição de cada)."""
+    return replace(cfg, backoff_retry_s=())
+
+
+async def tentativa_manual(cliente: ClienteEducado, estado, url_banco: str, destino: Path, host: str) -> str:
+    """1 robots.txt + 1 imagem num CDN desligado, por pedido explícito do dono.
+
+    O cliente vem com `robots_indisponivel={host}`, sem retry e com chave de
+    breaker própria (prefixo "manual"): a chave `cdn:<host>` do worker continua
+    desligada durante a tentativa e só muda no fim. Se o robots.txt
+    não responder normalmente, o CDN volta desligado em qualquer caso: o worker
+    trataria o mesmo 403 como bloqueio. Segunda tentativa não há."""
+    from coleta.estado import EstadoBreaker
+
+    chave = f"cdn:{host}"
+    cand = next((c for c in candidatas(url_banco) if urlsplit(url_no_cdn(c.url)).hostname == host), None)
+    if cand is None:
+        return f"{host}: nenhuma imagem pendente; nada foi pedido."
+    alvo = url_no_cdn(cand.url)
+    imagem_ok = False
+    try:
+        res = await cliente.obter(alvo, tipo="imagem")
+        if res.status == 200:
+            webp, larg, alt = para_webp(res.corpo)
+            nome = nome_do_arquivo(cand.url)
+            destino.mkdir(parents=True, exist_ok=True)
+            (destino / nome).write_bytes(webp)
+            _registrar(url_banco, cand.url, "ok", nome, larg, alt)
+            imagem_ok, resultado = True, f"imagem 200 ({larg}x{alt})"
+        else:
+            resultado = f"imagem HTTP {res.status}"
+    except (ColetaRecusada, FalhaTransitoria) as e:
+        resultado = f"recusada: {e}"
+    except Exception as e:  # imagem que não abre
+        resultado = f"imagem não abriu: {type(e).__name__}"
+    salvo = estado.robots(host)
+    robots_normal = salvo is not None and salvo[1] is not None and salvo[1] < 500
+    if imagem_ok and robots_normal:
+        estado.salvar_breaker(EstadoBreaker(loja=chave))  # religa para o worker
+        return f"{host}: robots.txt {salvo[1]}, {resultado}. CDN ligado: o worker segue com o orçamento de sempre."
+    b = estado.breaker(chave)
+    b.desligada = True
+    if imagem_ok:
+        b.motivo = (f"tentativa manual 27/11: robots.txt sem resposta normal, {resultado}; "
+                    "decisão do dono para tratar o robots 403 como ausente")
+    else:
+        b.motivo = f"tentativa manual 27/11: {resultado}; sem segunda tentativa"
+    estado.salvar_breaker(b)
+    return f"{host}: {resultado}. CDN desligado de novo ({b.motivo})."
+
+
 def plano(itens: list[Candidata], estado=None, agora: float = 0.0) -> list[str]:
     """Volume por CDN. CDN com breaker aberto ou desligado aparece como parado:
     o worker não manda nada para ele (o breaker recusa antes da rede)."""
@@ -219,6 +272,24 @@ async def _main(argv: list[str]) -> int:
     itens = candidatas(url_banco)
     cfg = ConfigColeta.carregar()
     estado = Estado(cfg.dir_dados / "coleta.sqlite3")
+    if "--tentativa-manual" in argv:
+        host = argv[argv.index("--tentativa-manual") + 1]
+        cand = next((c for c in itens if urlsplit(url_no_cdn(c.url)).hostname == host), None)
+        if "--dry-run" in argv or cand is None:
+            print(f"Tentativa manual em {host} (1 + 1, sem retry; robots 401/403 = indisponível só aqui):")
+            if cand:
+                print(f"   GET https://{host}/robots.txt\n   GET {url_no_cdn(cand.url)}")
+            else:
+                print("   nada pendente; nenhuma requisição")
+            return 0
+        transporte = TransporteCurlCffi()
+        try:
+            cliente = cliente_de_imagens(estado, transporte, cfg_manual(cfg), prefixo="manual",
+                                         robots_indisponivel=frozenset({host}))
+            print(await tentativa_manual(cliente, estado, url_banco, cfg.dir_dados / "imagens", host))
+        finally:
+            await transporte.fechar()
+        return 0
     if "--dry-run" in argv:
         print("Imagens de produto pelo ClienteEducado (só CDN de imagem; nenhuma página de loja):")
         print("\n".join(f"   {l}" for l in plano(itens, estado, time.time())) or "   nada pendente")

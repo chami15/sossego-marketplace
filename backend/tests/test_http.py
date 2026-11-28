@@ -422,6 +422,24 @@ async def test_robots_403_e_sinal_de_bloqueio(relogio, transporte):
     assert transporte.urls() == ["https://loja.com/robots.txt"]
 
 
+async def test_robots_403_como_indisponivel_so_no_host_pedido_e_sem_cache(relogio, transporte):
+    """Tentativa manual da CDN da Kabum (27/11, autorizada pelo dono): robots.txt
+    403 pode ser a CDN não servindo o arquivo (RFC 9309: 4xx = indisponível).
+    Só no host passado; não grava no cache; o 403 da imagem continua bloqueio."""
+    transporte.em("https://cdn.com/robots.txt", r(403))
+    transporte.em("https://cdn.com/a.jpg", r(403))
+    transporte.em("https://outra.com/robots.txt", r(403))
+    c = cliente(relogio, transporte)
+    c.robots_indisponivel = frozenset({"cdn.com"})
+    with pytest.raises(SinalDeBloqueio, match="403"):
+        await c.obter("https://cdn.com/a.jpg", tipo="imagem")
+    assert transporte.urls() == ["https://cdn.com/robots.txt", "https://cdn.com/a.jpg"]
+    assert c.estado.robots("cdn.com") is None
+    with pytest.raises(SinalDeBloqueio):
+        await c.obter("https://outra.com/p", tipo="produto")
+    assert transporte.urls()[-1] == "https://outra.com/robots.txt"
+
+
 async def test_robots_404_libera_e_fica_em_cache_24h(relogio, transporte):
     transporte.em("https://loja.com/robots.txt", r(404))
     c = cliente(relogio, transporte)

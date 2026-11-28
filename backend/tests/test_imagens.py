@@ -159,3 +159,80 @@ def test_regressao_dry_run_listava_cdn_desligado_como_se_fosse_baixar():
     assert "DESLIGADO" in kabum and "robots.txt respondeu 403" in kabum and "dia(s)" not in kabum
     assert not any("images.kabum.com.br" in l for l in linhas if l.startswith("exemplo"))
     assert any("dia(s)" in l for l in linhas if l.startswith("rihappy.vteximg.com.br"))
+
+# ---------- tentativa manual (Kabum, autorizada pelo dono em 27/11) ----------
+
+def cliente_manual(estado, transporte, relogio, host):
+    return imagens.cliente_de_imagens(estado, transporte, imagens.cfg_manual(ConfigColeta()), prefixo="manual",
+                                      relogio=relogio,
+                                      rng=random.Random(1), pausada=lambda: False,
+                                      robots_indisponivel=frozenset({host}))
+
+
+def desligar_cdn(estado, host):
+    b = estado.breaker(f"cdn:{host}")
+    b.desligada, b.motivo = True, "robots.txt respondeu 403"
+    estado.salvar_breaker(b)
+
+
+async def test_tentativa_manual_robots_403_e_imagem_403_volta_desligado_com_2_requisicoes(banco, tmp_path):
+    anuncio(banco, "kabum", "k1", "Console PS5 Slim Digital", KABUM)
+    associar(banco, [])
+    relogio, estado = RelogioFalso(), Estado(":memory:")
+    desligar_cdn(estado, "images.kabum.com.br")
+    t = TransporteFalso(relogio)
+    t.em("https://images.kabum.com.br/robots.txt", Resposta(403, {}, b"", "x"))
+    t.em(KABUM_G, Resposta(403, {}, b"", KABUM_G))
+    texto = await imagens.tentativa_manual(cliente_manual(estado, t, relogio, "images.kabum.com.br"),
+                                           estado, banco, tmp_path, "images.kabum.com.br")
+    assert t.urls() == ["https://images.kabum.com.br/robots.txt", KABUM_G]  # 1 + 1, sem retry
+    b = estado.breaker("cdn:images.kabum.com.br")
+    assert b.desligada and "tentativa manual" in b.motivo and "403" in texto
+    assert list(tmp_path.iterdir()) == []
+
+
+async def test_tentativa_manual_robots_403_e_imagem_ok_guarda_a_imagem_e_segue_desligado(banco, tmp_path):
+    anuncio(banco, "kabum", "k1", "Console PS5 Slim Digital", KABUM)
+    associar(banco, [])
+    relogio, estado = RelogioFalso(), Estado(":memory:")
+    desligar_cdn(estado, "images.kabum.com.br")
+    t = TransporteFalso(relogio)
+    t.em("https://images.kabum.com.br/robots.txt", Resposta(403, {}, b"", "x"))
+    t.em(KABUM_G, Resposta(200, {"content-type": "image/jpeg"}, jpeg(), KABUM_G))
+    texto = await imagens.tentativa_manual(cliente_manual(estado, t, relogio, "images.kabum.com.br"),
+                                           estado, banco, tmp_path, "images.kabum.com.br")
+    assert len(t.urls()) == 2 and len(list(tmp_path.iterdir())) == 1
+    # O worker trataria o robots 403 como bloqueio: segue desligado até o dono decidir.
+    b = estado.breaker("cdn:images.kabum.com.br")
+    assert b.desligada and "decisão do dono" in b.motivo and "decisão do dono" in texto
+
+
+async def test_tentativa_manual_com_5xx_nao_repete(banco, tmp_path):
+    anuncio(banco, "kabum", "k1", "Console PS5 Slim Digital", KABUM)
+    associar(banco, [])
+    relogio, estado = RelogioFalso(), Estado(":memory:")
+    t = TransporteFalso(relogio)
+    t.em("https://images.kabum.com.br/robots.txt", Resposta(503, {}, b"", "x"))
+    await imagens.tentativa_manual(cliente_manual(estado, t, relogio, "images.kabum.com.br"),
+                                   estado, banco, tmp_path, "images.kabum.com.br")
+    assert t.urls() == ["https://images.kabum.com.br/robots.txt"]
+    assert estado.breaker("cdn:images.kabum.com.br").desligada
+
+async def test_tentativa_manual_nao_religa_a_chave_do_worker_durante_a_tentativa(banco, tmp_path):
+    anuncio(banco, "kabum", "k1", "Console PS5 Slim Digital", KABUM)
+    associar(banco, [])
+    relogio, estado = RelogioFalso(), Estado(":memory:")
+    desligar_cdn(estado, "images.kabum.com.br")
+    vistos = []
+
+    class Espiao(TransporteFalso):
+        async def get(self, *a, **k):
+            vistos.append(estado.breaker("cdn:images.kabum.com.br").desligada)
+            return await super().get(*a, **k)
+
+    t = Espiao(relogio)
+    t.em("https://images.kabum.com.br/robots.txt", Resposta(403, {}, b"", "x"))
+    t.em(KABUM_G, Resposta(403, {}, b"", KABUM_G))
+    await imagens.tentativa_manual(cliente_manual(estado, t, relogio, "images.kabum.com.br"),
+                                   estado, banco, tmp_path, "images.kabum.com.br")
+    assert vistos == [True, True]  # o worker nunca viu a chave dele ligada

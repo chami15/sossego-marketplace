@@ -222,6 +222,10 @@ class ClienteEducado:
     # Orçamento (hora, dia) de uma chave específica; None = o padrão da config.
     # CDN de imagem tem o seu (150/dia), separado do da loja.
     orcamento_de: Callable[[str], tuple[int, int] | None] | None = None
+    # Hosts em que robots.txt 401/403 conta como "indisponível" (RFC 9309: 4xx
+    # libera), e não como bloqueio. Só por pedido explícito do dono, numa
+    # tentativa manual; nunca no worker. Não vai para o cache de robots.
+    robots_indisponivel: frozenset[str] = frozenset()
 
     def __post_init__(self):
         self._travas: dict[str, asyncio.Lock] = {}
@@ -436,6 +440,8 @@ class ClienteEducado:
             return _robots_de(salvo[1], salvo[2])
         url = f"{esquema}://{host}/robots.txt"
         r = await self._enviar_com_retry(loja, url, "robots", {}, None)
+        if r.status in (401, 403) and host in self.robots_indisponivel and not parece_desafio(r):
+            return robots_mod.Robots()
         if r.status in (401, 403, 429) or parece_desafio(r):
             # Barrado já no robots.txt: é sinal de bloqueio, e não coletamos nada.
             self._sinal(loja, f"robots.txt respondeu {r.status}", _retry_after(r.cabecalhos, agora))
