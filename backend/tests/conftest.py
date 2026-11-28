@@ -17,6 +17,6 @@ def banco_url():
 @pytest.fixture
 def banco(banco_url):
     with psycopg.connect(banco_url, autocommit=True) as c:
-        c.execute("TRUNCATE preco_snapshot, anuncio, produto, coleta_execucao, bruto_processado, perfil, busca_log"
-                  " RESTART IDENTITY CASCADE")
+        c.execute("TRUNCATE preco_snapshot, anuncio, produto, coleta_execucao, bruto_processado, perfil, busca_log,"
+                  " imagem_baixada RESTART IDENTITY CASCADE")
     return banco_url

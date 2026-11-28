@@ -481,3 +481,42 @@ async def test_regressao_304_sem_cache_virava_resposta_vazia(relogio, transporte
     assert len(transporte.sem_robots()) == 1
     b = c.estado.breaker("api.bcb.gov.br")
     assert not b.desligada and b.pausada_ate == 0
+
+
+# ---------------------------------------------------------------------------
+# Imagens de produto (Fase 8): CDN com orçamento próprio, binário fora do bruto
+# ---------------------------------------------------------------------------
+JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 2000
+
+
+async def test_orcamento_por_chave_vale_para_o_cdn_e_nao_para_a_loja(relogio, transporte):
+    c = cliente(relogio, transporte, orcamento_hora=1000)
+    c.orcamento_de = lambda chave: (1000, 3) if chave.startswith("images.") else None
+    for i in (0, 1, 9):
+        transporte.em(f"https://images.loja.com/{i}.jpg", r(200, JPEG, content_type="image/jpeg"))
+    for i in range(2):  # robots + 2 imagens = 3
+        await c.obter(f"https://images.loja.com/{i}.jpg", tipo="imagem")
+    with pytest.raises(OrcamentoEsgotado):
+        await c.obter("https://images.loja.com/9.jpg", tipo="imagem")
+    for i in range(4):  # a loja segue com o orçamento padrão
+        await c.obter(f"https://loja.com/p/{i}", tipo="produto")
+
+
+async def test_imagem_nao_vai_para_bruto_nem_cache(relogio, transporte, tmp_path):
+    transporte.em("https://images.loja.com/a.jpg", r(200, JPEG, content_type="image/jpeg"))
+    c = cliente(relogio, transporte)
+    c.dir_bruto = tmp_path
+    res = await c.obter("https://images.loja.com/a.jpg", tipo="imagem")
+    assert res.corpo == JPEG
+    assert not list(tmp_path.rglob("*.json.gz"))
+    assert c.estado.cache("https://images.loja.com/a.jpg") is None
+
+
+async def test_imagem_que_vem_como_html_e_conteudo_inesperado(relogio, transporte):
+    # CDN devolvendo página (desafio, erro com 200): pausa o CDN, não grava nada.
+    transporte.em("https://images.loja.com/a.jpg", r(200, HTML_OK, content_type="text/html"))
+    c = cliente(relogio, transporte)
+    with pytest.raises(MoldeQuebrado):
+        await c.obter("https://images.loja.com/a.jpg", tipo="imagem")
+    with pytest.raises(LojaEmPausa):
+        await c.obter("https://images.loja.com/b.jpg", tipo="imagem")

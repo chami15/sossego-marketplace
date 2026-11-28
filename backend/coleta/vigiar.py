@@ -244,6 +244,20 @@ async def taxas_diarias(cliente: ClienteEducado, checar_s: float = 3600) -> None
         await asyncio.sleep(checar_s)
 
 
+async def imagens_periodicas(cliente: ClienteEducado, url_banco: str, checar_s: float = 1800) -> None:
+    """Imagens de produto: depois das rodadas, a cada 30 min, até o orçamento de
+    cada CDN (coleta/imagens.py). Nunca quando o dono abre a tela."""
+    from coleta import imagens
+
+    while True:
+        if not (cliente.pausada() or desligado(cliente.cfg.dir_dados)):
+            paradas = imagens.lojas_paradas(cliente.estado, time.time())
+            feitos = await imagens.baixar(cliente, url_banco, cliente.cfg.dir_dados / "imagens", paradas)
+            if feitos["ok"] or feitos["falhou"]:
+                print(f"[{time.strftime('%H:%M:%S')}] imagens         {feitos}", flush=True)
+        await asyncio.sleep(checar_s)
+
+
 async def executar(tarefas: list[Tarefa], continuo: bool) -> None:
     cfg = ConfigColeta.carregar()
     estado = Estado(cfg.dir_dados / "coleta.sqlite3")
@@ -291,6 +305,14 @@ async def executar(tarefas: list[Tarefa], continuo: bool) -> None:
 
     pulso = asyncio.create_task(bater())
     taxas = asyncio.create_task(taxas_diarias(cliente)) if continuo else None
+    from coleta.imagens import cliente_de_imagens
+
+    # Começa 10 min depois: a 1ª rodada de cada loja vem antes das imagens.
+    async def imagens_depois():
+        await asyncio.sleep(600)
+        await imagens_periodicas(cliente_de_imagens(estado, transporte, cfg), database_url())
+
+    fotos = asyncio.create_task(imagens_depois()) if continuo else None
     try:
         await asyncio.gather(*(ciclo(l, ts) for l, ts in por_loja.items()))
     except ColetaPausada as e:
@@ -301,6 +323,8 @@ async def executar(tarefas: list[Tarefa], continuo: bool) -> None:
         pulso.cancel()
         if taxas:
             taxas.cancel()
+        if fotos:
+            fotos.cancel()
         batimento.unlink(missing_ok=True)
         await transporte.fechar()
 

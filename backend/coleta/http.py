@@ -30,7 +30,7 @@ from coleta.estado import EntradaCache, Estado
 
 log = logging.getLogger("sossego.coleta")
 
-Tipo = Literal["busca", "produto", "robots", "recon"]
+Tipo = Literal["busca", "produto", "robots", "recon", "imagem"]
 
 
 # --- erros: cada um diz por que a requisição NÃO saiu (ou parou) ----------
@@ -219,6 +219,9 @@ class ClienteEducado:
     # Lojas em que o 1º bloqueio já desliga (ex.: API oficial com token: 403
     # ali é recusa explícita, e o dono quer ser avisado, não que insistamos).
     estritas: frozenset[str] = frozenset()
+    # Orçamento (hora, dia) de uma chave específica; None = o padrão da config.
+    # CDN de imagem tem o seu (150/dia), separado do da loja.
+    orcamento_de: Callable[[str], tuple[int, int] | None] | None = None
 
     def __post_init__(self):
         self._travas: dict[str, asyncio.Lock] = {}
@@ -270,7 +273,9 @@ class ClienteEducado:
             self._checar_breaker(loja)
 
             ttl = self.cfg.ttl_busca_s if tipo == "busca" else self.cfg.ttl_produto_s
-            em_cache = self.estado.cache(url)
+            # Imagem vira arquivo em disco: cache no SQLite e bruto em JSON só ocupariam espaço.
+            imagem = tipo == "imagem"
+            em_cache = None if imagem else self.estado.cache(url)
             if em_cache and self.relogio.agora() - em_cache.obtido_em < ttl:
                 self._registrar(loja, url, tipo, self.relogio.agora(), em_cache.status, 0, 0, "cache")
                 return self._resultado(url, loja, em_cache, do_cache=True)
@@ -308,10 +313,12 @@ class ClienteEducado:
 
             # Bruto antes de validar: se o layout mudou (Black Friday), a
             # resposta crua fica salva e o parser reprocessa depois.
-            if _sucesso_http(r.status):
+            if _sucesso_http(r.status) and not imagem:
                 self._gravar_bruto(loja, url, tipo, r)
 
             molde = self._motivo_molde(r, validar)
+            if imagem and _sucesso_http(r.status) and not r.cabecalhos.get("content-type", "").startswith("image/"):
+                molde = f"esperava imagem, veio {r.cabecalhos.get('content-type') or 'sem content-type'}"
             if molde:
                 self._classificar(r, "molde_quebrado")
                 self._sinal_molde(loja, molde)
@@ -323,7 +330,7 @@ class ClienteEducado:
                 url, self.relogio.agora(), r.status, r.cabecalhos, r.corpo,
                 r.cabecalhos.get("etag"), r.cabecalhos.get("last-modified"),
             )
-            if _sucesso_http(r.status):
+            if _sucesso_http(r.status) and not imagem:
                 self.estado.guardar_cache(entrada)
             return self._resultado(url, loja, entrada, do_cache=False)
 
@@ -341,7 +348,8 @@ class ClienteEducado:
 
     def _checar_orcamento(self, loja: str):
         agora = self.relogio.agora()
-        for janela, segundos, limite in (("hora", 3600, self.cfg.orcamento_hora), ("dia", 86400, self.cfg.orcamento_dia)):
+        hora, dia = (self.orcamento_de and self.orcamento_de(loja)) or (self.cfg.orcamento_hora, self.cfg.orcamento_dia)
+        for janela, segundos, limite in (("hora", 3600, hora), ("dia", 86400, dia)):
             if self.estado.enviadas_desde(loja, agora - segundos) >= limite:
                 antiga = self.estado.mais_antiga_enviada_desde(loja, agora - segundos)
                 libera = antiga + segundos if antiga else None
