@@ -155,9 +155,16 @@ def simular(*, preco_avista: Decimal, preco_cartao: Decimal, parcelas: int,
             frase = "Tanto faz: no valor de hoje, Pix e parcelado custam o mesmo. Pague no Pix, que é mais simples."
     else:
         juros = "sem juros" if melhor.juros_mensal is None else "com juros"
-        frase = (f"Parcele em {melhor.parcelas}x {juros}. O desconto no Pix é só {_br(desconto_pix)}%, abaixo "
-                 f"dos {_br(melhor.desconto_equilibrio)}% que seu dinheiro rende no período. "
-                 f"Deixe o valor aplicado.")
+        if desconto_pix <= 0:
+            # Sem desconto não há o que comparar: "o desconto é só 0,0%" soava a erro.
+            if melhor.parcelas == 1:
+                frase = "Sem desconto no Pix: pague no cartão em 1x e deixe o dinheiro rendendo até a fatura."
+            else:
+                frase = f"Sem desconto no Pix: parcele em {melhor.parcelas}x {juros} e deixe o dinheiro rendendo."
+        else:
+            frase = (f"Parcele em {melhor.parcelas}x {juros}. O desconto no Pix é só {_br(desconto_pix)}%, abaixo "
+                     f"dos {_br(melhor.desconto_equilibrio)}% que seu dinheiro rende no período. "
+                     f"Deixe o valor aplicado.")
     return Simulacao(frase, melhor, opcoes, desconto_pix, economia,
                      {"no_ato": no_ato, "cashback": cashback, "pct_cdi": pct_cdi, "cdi_anual": cdi_anual,
                       "taxa_mensal_informada": taxa_mensal})

@@ -25,7 +25,8 @@ def test_aceitacao_10x_de_1000_em_30_dias_equilibrio_5_64():
 def test_aceitacao_pix_sem_desconto_recomenda_parcelar_sem_juros():
     r = simular(preco_avista=D(1000), preco_cartao=D(1000), parcelas=10, taxa_mensal=D("0.01"))
     assert r.melhor.tipo == "parcelado" and r.melhor.parcelas == 10
-    assert r.recomendacao.startswith("Parcele em 10x sem juros.")
+    # Frase pedida pelo dono em 27/11 (antes: "Parcele em 10x sem juros. O desconto no Pix é só 0,0%...").
+    assert r.recomendacao == "Sem desconto no Pix: parcele em 10x sem juros e deixe o dinheiro rendendo."
 
 
 def test_aceitacao_parcelado_com_juros_de_3_contra_rendimento_de_1_recomenda_pix():
@@ -50,6 +51,17 @@ def test_frase_do_pix_com_numeros_do_exemplo():
     assert r.melhor.tipo == "pix"
     assert r.recomendacao == ("Pague no Pix. O desconto de 10,0% supera o que o dinheiro renderia parcelado "
                               "em 10x (equilíbrio: 5,6%). Você economiza ~R$ 44 em valor de hoje.")
+
+
+def test_regressao_frase_dizia_desconto_de_zero_por_cento_no_pix():
+    # 27/11 (PS5 na Kabum, Pix = cartão): "O desconto no Pix é só 0,0%".
+    r = simular(preco_avista=D(4289), preco_cartao=D(4289), parcelas=10, taxa_mensal=D("0.0107"))
+    assert r.recomendacao == "Sem desconto no Pix: parcele em 10x sem juros e deixe o dinheiro rendendo."
+
+
+def test_regressao_frase_mandava_parcelar_em_1x():
+    r = simular(preco_avista=D("429.90"), preco_cartao=D("429.90"), parcelas=1, taxa_mensal=D("0.0107"))
+    assert r.recomendacao == "Sem desconto no Pix: pague no cartão em 1x e deixe o dinheiro rendendo até a fatura."
 
 
 def test_frase_do_parcelado_quando_o_desconto_e_pequeno():
