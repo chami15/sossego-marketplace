@@ -1,7 +1,8 @@
 /* Página de produto: galeria | centro | lateral fixa ao rolar. Empilha no celular. */
 .produto {
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 6fr) minmax(0, 4fr);
+  /* Galeria ~40%; centro e lateral dividem o resto. */
+  grid-template-columns: minmax(0, 8fr) minmax(0, 7fr) minmax(0, 5fr);
   align-items: start;
   gap: var(--esp-5);
   width: 100%;
@@ -24,8 +25,9 @@
   color: var(--grafite);
 }
 .galeria__principal img {
-  max-width: 84%;
-  max-height: 84%;
+  /* Ocupa o quadro (84% = respiro de ~8%); ImagemProduto limita a 2x o real. */
+  width: 84%;
+  height: 84%;
   object-fit: contain;
   mix-blend-mode: multiply;
 }
@@ -57,6 +59,7 @@
 
 /* ---------- centro ---------- */
 .produto__centro {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: var(--esp-4);
@@ -455,9 +458,10 @@
     position: static;
   }
 }
-/* Celular: cada oferta vira um bloco (loja em cima, valores rotulados, botão
-   inteiro embaixo); o botão "Ir para a loja" nunca fica escondido na rolagem. */
-@media (max-width: 599px) {
+/* Coluna central estreita (desktop com galeria grande, ou celular): cada oferta
+   vira um bloco (loja em cima, valores rotulados, botão inteiro embaixo); o
+   "Ir para a loja" nunca fica escondido na rolagem. */
+@container (max-width: 640px) {
   .ofertas thead {
     display: none;
   }

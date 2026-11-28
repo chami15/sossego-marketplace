@@ -53,7 +53,7 @@ test("frete entra no custo: PS5 da Kabum (frete grátis) antes da Amazon (+19,90
   await expect(linhas.nth(0)).toContainText("10x sem juros");
   await expect(linhas.nth(0)).toContainText("grátis");
   await expect(linhas.nth(1)).toContainText("R$ 19,90");
-  await expect(page.getByText("vendido por KaBuM!")).toBeVisible();
+  await expect(page.getByText("Vendido por KaBuM!")).toBeVisible();
 });
 
 test("variação: escolher a cor muda as ofertas mostradas", async ({ page }) => {
@@ -64,7 +64,28 @@ test("variação: escolher a cor muda as ofertas mostradas", async ({ page }) =>
   await page.getByRole("radio", { name: "Preto" }).locator("xpath=..").click();
   await expect(linhas).toHaveCount(1);
   await expect(linhas.first()).toContainText("Ri Happy");
-  await expect(page.getByRole("link", { name: /^Comprar na Ri Happy por R\$ 444,90/ })).toBeVisible(); // 429,90 + frete 15
+});
+
+test("regressão: destaque e botão mostravam valores diferentes (frete somado escondido)", async ({ page }) => {
+  await comPerfil(page);
+  await page.goto(`/produto/${await idDe(page, "dualsense")}`);
+  await page.getByRole("radio", { name: "Preto" }).locator("xpath=..").click();
+  const melhor = page.locator(".melhor");
+  await expect(melhor.locator(".melhor__preco .so-leitor")).toHaveText("R$ 429,90");
+  await expect(melhor.getByRole("link", { name: /^Comprar na Ri Happy por R\$\s429,90/ })).toBeVisible();
+  await expect(melhor).toContainText("+ R$ 15,00 de frete");
+});
+
+test("regressão: escolher a variação não trocava a imagem da galeria", async ({ page }) => {
+  await comPerfil(page);
+  const id = await idDe(page, "dualsense");
+  const p = await (await page.request.get(`/api/v1/produtos/${id}`)).json();
+  const imagemDe = (loja: string) => p.ofertas.find((o: { loja: string }) => o.loja === loja).imagem_local;
+  await page.goto(`/produto/${id}`);
+  const principal = page.locator(".galeria__principal img");
+  await expect(principal).toHaveAttribute("src", imagemDe("kabum")); // Branco, a melhor oferta
+  await page.getByRole("radio", { name: "Preto" }).locator("xpath=..").click();
+  await expect(principal).toHaveAttribute("src", imagemDe("ri-happy"));
 });
 
 test("gráfico: legenda por loja, período e a tabela com os pontos", async ({ page }) => {
@@ -128,10 +149,13 @@ test("calculadora: Pix × parcelado com o CDI do Banco Central", async ({ page }
   await comPerfil(page);
   await page.goto(`/produto/${await idDe(page, "console ps5")}`);
   const calc = page.locator(".calc");
-  await expect(calc.getByLabel("No cartão (R$)")).toHaveValue("4289,00");
+  await expect(calc.getByLabel("No cartão (R$)")).toHaveValue("4.289,00"); // mesmo formato da tela
+  await expect(calc.locator(".calc__veredito")).toHaveText("Sem desconto no Pix: parcele em 10x sem juros e deixe o dinheiro rendendo.");
   await expect(calc.locator(".calc__veredito")).not.toBeEmpty();
   await expect(calc).toContainText("CDI 13,65% a.a.");
-  await calc.getByLabel("No Pix (R$)").fill("3900,00");
+  await calc.getByLabel("No Pix (R$)").fill("3900");
+  await calc.getByLabel("No Pix (R$)").blur();
+  await expect(calc.getByLabel("No Pix (R$)")).toHaveValue("3.900,00");
   await expect(calc.locator(".calc__opcao--melhor")).toContainText("Pix");
 });
 
@@ -141,4 +165,25 @@ test("parecidos: produtos da mesma categoria, já com preço", async ({ page }) 
   const sec = page.locator(".parecidos");
   await expect(sec.getByRole("heading", { name: "Você também pode gostar" })).toBeVisible();
   await expect(sec.locator(".card").first()).toContainText("R$");
+});
+
+test("imagem pequena (60 px) não estica além de 2x; a grande ocupa o quadro", async ({ page }) => {
+  await comPerfil(page);
+  await page.goto("/busca?categoria=jogos-tabuleiro");
+  const ito = page.locator(".grade-cards .card", { hasText: "Ito" }).locator(".card__imagem img");
+  await expect(ito).toBeVisible();
+  await expect.poll(async () => (await ito.boundingBox())!.width).toBeLessThanOrEqual(120);
+
+  await page.goto(`/produto/${await idDe(page, "console ps5")}`);
+  const grande = page.locator(".galeria__principal img");
+  const quadro = (await page.locator(".galeria__principal").boundingBox())!;
+  await expect.poll(async () => (await grande.boundingBox())!.width).toBeGreaterThan(quadro.width * 0.8);
+});
+
+test("só vendedor, sem descrição: aparece na tabela e a seção Sobre some", async ({ page }) => {
+  await comPerfil(page);
+  await page.goto(`/produto/${await idDe(page, "console ps5")}`);
+  await expect(page.getByText("Vendido por KaBuM!", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sobre o produto" })).toHaveCount(0);
+  await expect(page.getByText("KaBuM!.")).toHaveCount(0);
 });

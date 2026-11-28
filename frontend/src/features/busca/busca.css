@@ -40,6 +40,9 @@
 .coletas__loja--alerta svg {
   color: var(--alta);
 }
+.coletas__loja--neutro svg {
+  color: var(--grafite);
+}
 .coletas__quando {
   color: var(--grafite);
 }

@@ -101,3 +101,22 @@ test("regressão: no celular a busca estourava a largura da tela", async ({ page
     expect(await page.evaluate(() => document.documentElement.scrollWidth), url).toBeLessThanOrEqual(390);
   }
 });
+
+test("situação das lojas: sem estado é neutro (cinza); vermelho só para bloqueada ou atrasada", async ({ page }) => {
+  await comPerfil(page);
+  // O e2e não tem dados/coleta.sqlite3: todas as lojas vêm "sem_estado".
+  await page.goto("/busca?q=ps5");
+  const kabum = page.locator(".coletas__loja", { hasText: "Kabum" });
+  await expect(kabum).toHaveClass(/coletas__loja--neutro/);
+  await expect(kabum).toContainText("sem dados da coleta");
+  await expect(page.locator(".coletas__loja--alerta")).toHaveCount(0);
+
+  await page.route("**/api/v1/saude", (r) =>
+    r.fulfill({ json: { lojas: [
+      { slug: "kabum", nome: "Kabum", situacao: "bloqueio", texto: "x", ultima_ok: null },
+      { slug: "ludopedia", nome: "Ludopedia", situacao: "atrasada", texto: "x", ultima_ok: null },
+    ] } }));
+  await page.reload();
+  await expect(page.locator(".coletas__loja--alerta")).toHaveCount(2);
+  await expect(page.locator(".coletas__loja", { hasText: "Kabum" })).toContainText("bloqueada");
+});

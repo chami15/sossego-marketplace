@@ -5,11 +5,12 @@ import { useParams } from "react-router-dom";
 import { api, type Card, type Historico, type Oferta, type Periodo, type Produto as DadosProduto } from "../../api/cliente";
 import { Aviso } from "../../components/Aviso";
 import { CardProduto, PrecoGrande } from "../../components/CardProduto";
+import { ImagemProduto } from "../../components/ImagemProduto";
 import { IconeCategoria, iconeDoSlug } from "../../components/IconeCategoria";
 import { IconeLoja } from "../../components/IconeLoja";
 import { OpcaoUnica } from "../../components/Escolha";
 import { Rodape, Topo } from "../../components/Topo";
-import { centavos, dataCurta, deCentavos, reais } from "../../formato";
+import { centavos, dataCurta, deNumeroBR, numeroBR, reais } from "../../formato";
 import { useVigias } from "../../vigias";
 import { Calculadora } from "./Calculadora";
 import { GraficoPreco } from "./GraficoPreco";
@@ -25,9 +26,17 @@ const PERIODOS: [Periodo, string][] = [
 // Custo efetivo de uma oferta para ordenar a tabela: o menor entre Pix e
 // cartão, mais o frete. Em centavos (BigInt): dinheiro nunca é float.
 // (A calculadora ao lado diz se o parcelado sem juros vale mais que o Pix.)
+// O preço mostrado (destaque e botão) é o efetivo SEM frete; o frete aparece
+// explícito embaixo. Só a ordenação usa o custo com frete.
+const precoEfetivo = (o: Oferta) => (o.preco_pix && centavos(o.preco_pix) < centavos(o.preco) ? o.preco_pix : o.preco);
+
 function custo(o: Oferta): bigint {
-  const base = o.preco_pix && centavos(o.preco_pix) < centavos(o.preco) ? o.preco_pix : o.preco;
-  return centavos(base) + (o.frete ? centavos(o.frete) : 0n);
+  return centavos(precoEfetivo(o)) + (o.frete ? centavos(o.frete) : 0n);
+}
+
+function linhaFrete(o: Oferta): string | null {
+  if (o.frete === null) return null;
+  return centavos(o.frete) === 0n ? "Frete grátis" : `+ ${reais(o.frete)} de frete`;
 }
 
 const viva = (o: Oferta) => !o.desatualizada && o.em_estoque !== false;
@@ -44,7 +53,7 @@ function Galeria({ imagens, categoria, titulo }: { imagens: string[]; categoria:
     <div className="galeria">
       <div className="galeria__principal">
         {imagens.length ? (
-          <img src={imagens[atual]} alt={titulo} />
+          <ImagemProduto src={imagens[atual]} alt={titulo} />
         ) : (
           <IconeCategoria icone={iconeDoSlug(categoria)} tamanho={72} />
         )}
@@ -71,15 +80,15 @@ function Galeria({ imagens, categoria, titulo }: { imagens: string[]; categoria:
 
 function FicarDeOlho({ produto, titulo }: { produto: number; titulo: string }) {
   const v = useVigias();
-  const [alvo, setAlvo] = useState(v.precoAlvo(produto)?.replace(".", ",") ?? "");
+  const inicial = v.precoAlvo(produto);
+  const [alvo, setAlvo] = useState(inicial ? numeroBR(inicial) : "");
   const [salvo, setSalvo] = useState<string | null>(null);
   if (!v.disponivel) return null;
   const ligado = v.vigiado(produto);
 
   async function enviar(e: FormEvent) {
     e.preventDefault();
-    const d = alvo.replace(/[^\d,]/g, "").replace(",", ".");
-    const preco = /^\d+(\.\d{1,2})?$/.test(d) ? d : null;
+    const preco = deNumeroBR(alvo);
     await v.definir(produto, preco);
     setSalvo(preco ? `Avisamos quando ficar abaixo de ${reais(preco)}.` : "Vigiando. Aparece em De olho na página inicial.");
   }
@@ -176,9 +185,9 @@ export function Produto() {
     );
 
   const melhor = ofertas.find(viva) ?? null;
-  const imagens = [...new Set(dados.ofertas.map((o) => o.imagem_local).filter((x): x is string => Boolean(x)))];
+  // A galeria segue a variação escolhida e começa pela melhor oferta.
+  const imagens = [...new Set(ofertas.map((o) => o.imagem_local).filter((x): x is string => Boolean(x)))];
   const especificacoes = Object.entries(dados.especificacoes ?? {});
-  const vendedores = [...new Set(ofertas.map((o) => o.vendedor).filter(Boolean))];
   // Coluna que só teria "—" não aparece (a tabela cabe sem rolar).
   const temPix = ofertas.some((o) => o.preco_pix && o.preco_pix !== o.preco);
   const temParcelas = ofertas.some((o) => parcelas(o));
@@ -188,7 +197,7 @@ export function Produto() {
     <div className="pagina">
       <Topo />
       <main className="produto">
-        <Galeria imagens={imagens} categoria={dados.categoria} titulo={dados.titulo} />
+        <Galeria key={imagens.join()} imagens={imagens} categoria={dados.categoria} titulo={dados.titulo} />
 
         <div className="produto__centro">
           {dados.marca && <p className="produto__marca">{dados.marca}</p>}
@@ -216,12 +225,13 @@ export function Produto() {
                 Melhor oferta agora
               </p>
               <div className="melhor__linha">
-                <PrecoGrande valor={melhor.preco_pix && centavos(melhor.preco_pix) < centavos(melhor.preco) ? melhor.preco_pix : melhor.preco} classe="melhor__preco" />
+                <PrecoGrande valor={precoEfetivo(melhor)} classe="melhor__preco" />
                 <div className="melhor__detalhe">
                   {melhor.preco_pix && centavos(melhor.preco_pix) < centavos(melhor.preco) && (
                     <p>no Pix · {reais(melhor.preco)} no cartão</p>
                   )}
                   {parcelas(melhor) && <p>{parcelas(melhor)}</p>}
+                  {linhaFrete(melhor) && <p>{linhaFrete(melhor)}</p>}
                   <p className="melhor__loja">
                     <IconeLoja slug={melhor.loja} nome={melhor.loja_nome} tamanho={20} />
                     {melhor.loja_nome}
@@ -229,7 +239,7 @@ export function Produto() {
                 </div>
               </div>
               <a className="botao botao--primario melhor__comprar" href={melhor.url} target="_blank" rel="noopener noreferrer">
-                Comprar na {melhor.loja_nome} por {reais(deCentavos(custo(melhor)))}
+                Comprar na {melhor.loja_nome} por {reais(precoEfetivo(melhor))}
                 <ExternalLink size={18} strokeWidth={1.75} aria-hidden="true" />
               </a>
             </section>
@@ -265,7 +275,7 @@ export function Produto() {
                           <IconeLoja slug={o.loja} nome={o.loja_nome} tamanho={24} />
                           <span>
                             {o.loja_nome}
-                            {o.vendedor && <span className="ofertas__vendedor">vendido por {o.vendedor}</span>}
+                            {o.vendedor && <span className="ofertas__vendedor">Vendido por {o.vendedor}</span>}
                             {!viva(o) && (
                               <span className="ofertas__vendedor">
                                 {o.em_estoque === false ? "sem estoque" : `visto em ${dataCurta(o.ultima_coleta_em)}`}
@@ -291,7 +301,8 @@ export function Produto() {
             </div>
           </section>
 
-          {(dados.descricao || especificacoes.length > 0 || vendedores.length > 0) && (
+          {/* Vendedor já está na tabela; a seção só aparece com descrição ou especificações. */}
+          {(dados.descricao || especificacoes.length > 0) && (
             <section aria-labelledby="sobre-titulo" className="sobre">
               <h2 id="sobre-titulo" className="produto__secao">
                 Sobre o produto
@@ -307,7 +318,6 @@ export function Produto() {
                   ))}
                 </dl>
               )}
-              {vendedores.length > 0 && <p className="sobre__texto">Vendedores: {vendedores.join(", ")}.</p>}
             </section>
           )}
         </div>

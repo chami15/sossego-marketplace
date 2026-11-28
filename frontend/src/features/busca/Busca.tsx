@@ -1,4 +1,4 @@
-import { Ban, Check, Clock, X } from "lucide-react";
+import { Ban, Check, CircleDashed, Clock, Wrench, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -26,6 +26,17 @@ function paraDecimal(texto: string): string {
 
 type Estado = { tipo: "carregando" } | { tipo: "erro" } | { tipo: "ok"; r: ResultadoBusca };
 
+// Vermelho só para o que impede o dado de chegar (bloqueio ou atraso). "Sem
+// dados da coleta" e manutenção de molde são neutros: não são erro da loja.
+const SITUACOES: Record<string, { tom: "ok" | "alerta" | "neutro"; icone: typeof Check; texto: string }> = {
+  ok: { tom: "ok", icone: Check, texto: "ok" },
+  atrasada: { tom: "alerta", icone: Clock, texto: "atrasada" },
+  bloqueio: { tom: "alerta", icone: Ban, texto: "bloqueada" },
+  desligada: { tom: "alerta", icone: Ban, texto: "bloqueada" },
+  molde_quebrado: { tom: "neutro", icone: Wrench, texto: "em manutenção" },
+  sem_estado: { tom: "neutro", icone: CircleDashed, texto: "sem dados da coleta" },
+};
+
 /** De onde vêm os preços: a situação de cada loja coletada (a busca não vai às lojas). */
 function Coletas({ lojas }: { lojas: SaudeLoja[] }) {
   const ativas = lojas.filter((l) => l.situacao !== "inativa");
@@ -33,13 +44,13 @@ function Coletas({ lojas }: { lojas: SaudeLoja[] }) {
   return (
     <ul className="coletas" aria-label="Situação das lojas coletadas">
       {ativas.map((l) => {
-        const ok = l.situacao === "ok";
-        const Icone = ok ? Check : l.situacao === "atrasada" ? Clock : Ban;
+        const s = SITUACOES[l.situacao] ?? SITUACOES.sem_estado;
+        const Icone = s.icone;
         return (
-          <li key={l.slug} className={`coletas__loja coletas__loja--${ok ? "ok" : "alerta"}`}>
-            <Icone size={14} strokeWidth={2.25} aria-hidden="true" />
+          <li key={l.slug} className={`coletas__loja coletas__loja--${s.tom}`}>
+            <Icone size={14} strokeWidth={2} aria-hidden="true" />
             {l.nome}
-            <span className="coletas__quando">{ok && l.ultima_ok ? haQuanto(l.ultima_ok) : l.situacao.replace("_", " ")}</span>
+            <span className="coletas__quando">{s.tom === "ok" && l.ultima_ok ? haQuanto(l.ultima_ok) : s.texto}</span>
           </li>
         );
       })}

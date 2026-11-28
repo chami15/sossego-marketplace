@@ -6,6 +6,7 @@ import type { Card } from "../api/cliente";
 import { dataCurta, partesReais, porcento, reais } from "../formato";
 import { useVigias } from "../vigias";
 import { IconeCategoria, iconeDoSlug } from "./IconeCategoria";
+import { ImagemProduto } from "./ImagemProduto";
 import { IconeLoja } from "./IconeLoja";
 
 /** Selo de variação contra o NOSSO histórico (nunca o "de" da loja): seta + %, não só cor. */
@@ -77,7 +78,7 @@ export function CardProduto({ card, porque }: { card: Card; porque?: string }) {
         {semImagem ? (
           <IconeCategoria icone={iconeDoSlug(card.categoria)} tamanho={48} />
         ) : (
-          <img src={card.imagem_local!} alt="" loading="lazy" decoding="async" onError={() => setSemImagem(true)} />
+          <ImagemProduto src={card.imagem_local!} alt="" loading="lazy" onError={() => setSemImagem(true)} />
         )}
         <BotaoVigiar produto={card.id} titulo={card.titulo} classe="card__vigiar" />
       </div>

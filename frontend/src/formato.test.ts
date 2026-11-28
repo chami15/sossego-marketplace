@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { centavos, deCentavos, partesReais, porcento, reais } from "./formato.ts";
+import { centavos, deCentavos, deNumeroBR, numeroBR, partesReais, porcento, reais } from "./formato.ts";
 
 const NBSP = " ";
 
@@ -36,4 +36,15 @@ test("centavos: aritmética exata em BigInt, ida e volta", () => {
   assert.equal(centavos("19.9"), 1990n);
   assert.equal(deCentavos(428900n + 1990n), "4308.90");
   assert.equal(deCentavos(5n), "0.05");
+});
+test("campos de valor: mesmo formato pt-BR da tela, ida e volta", () => {
+  assert.equal(numeroBR("4289.00"), "4.289,00");
+  assert.equal(numeroBR("429.9"), "429,90");
+  assert.equal(deNumeroBR("4.289,00"), "4289.00");
+  assert.equal(deNumeroBR("4289,5"), "4289.50");
+  assert.equal(deNumeroBR("R$ 1.234.567,89"), "1234567.89");
+  assert.equal(deNumeroBR("4.289"), "4289.00"); // ponto em pt-BR é milhar
+  assert.equal(deNumeroBR(""), null);
+  assert.equal(deNumeroBR("12,345"), null);
+  assert.equal(deNumeroBR("abc"), null);
 });

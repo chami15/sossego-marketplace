@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { api, ErroApi, type Simulacao } from "../../api/cliente";
-import { porcento, reais } from "../../formato";
+import { deNumeroBR, numeroBR, porcento, reais } from "../../formato";
 
 // Calculadora de pagamento (Fase 5): Pix agora × parcelado, em reais de hoje,
 // com o CDI do Banco Central salvo pelo worker. Começa com a melhor oferta.
@@ -11,11 +11,6 @@ interface Props {
   parcelas: number;
 }
 
-const paraDecimal = (texto: string) => {
-  const limpo = texto.replace(/[^\d,]/g, "").replace(",", ".");
-  return /^\d+(\.\d{1,2})?$/.test(limpo) ? limpo : "";
-};
-const paraTela = (d: string) => d.replace(".", ",");
 
 // A API devolve Pix e cada nº de parcelas (até 11 linhas). Na lateral bastam a
 // melhor, o Pix e o parcelamento máximo: o resto fica entre esses dois.
@@ -27,16 +22,17 @@ function resumo(s: Simulacao) {
 }
 
 export function Calculadora({ avista, cartao, parcelas }: Props) {
-  const [campos, setCampos] = useState({ avista: paraTela(avista), cartao: paraTela(cartao), parcelas: String(parcelas) });
+  const [campos, setCampos] = useState({ avista: numeroBR(avista), cartao: numeroBR(cartao), parcelas: String(parcelas) });
   const [r, setR] = useState<Simulacao | null | "erro" | "sem-taxa">(null);
 
   useEffect(() => {
-    const e = { preco_avista: paraDecimal(campos.avista), preco_cartao: paraDecimal(campos.cartao), parcelas: Number(campos.parcelas) };
+    const e = { preco_avista: deNumeroBR(campos.avista), preco_cartao: deNumeroBR(campos.cartao), parcelas: Number(campos.parcelas) };
     if (!e.preco_avista || !e.preco_cartao || !(e.parcelas >= 1 && e.parcelas <= 24)) return;
     let vivo = true;
+    const { preco_avista, preco_cartao } = e;
     const t = setTimeout(() => {
       api
-        .simular(e)
+        .simular({ ...e, preco_avista, preco_cartao })
         .then((s) => vivo && setR(s))
         .catch((x) => vivo && setR(x instanceof ErroApi && x.status === 503 ? "sem-taxa" : "erro"));
     }, 250);
@@ -46,6 +42,12 @@ export function Calculadora({ avista, cartao, parcelas }: Props) {
     };
   }, [campos]);
 
+  // Ao sair do campo, o valor volta no formato da tela ("3900" → "3.900,00").
+  function reformatar(campo: "avista" | "cartao") {
+    const d = deNumeroBR(campos[campo]);
+    if (d) setCampos({ ...campos, [campo]: numeroBR(d) });
+  }
+
   return (
     <section className="calc" aria-labelledby="calc-titulo">
       <h2 id="calc-titulo" className="lateral__titulo">
@@ -54,11 +56,21 @@ export function Calculadora({ avista, cartao, parcelas }: Props) {
       <div className="calc__campos">
         <label>
           <span>No Pix (R$)</span>
-          <input inputMode="decimal" value={campos.avista} onChange={(e) => setCampos({ ...campos, avista: e.target.value })} />
+          <input
+            inputMode="decimal"
+            value={campos.avista}
+            onChange={(e) => setCampos({ ...campos, avista: e.target.value })}
+            onBlur={() => reformatar("avista")}
+          />
         </label>
         <label>
           <span>No cartão (R$)</span>
-          <input inputMode="decimal" value={campos.cartao} onChange={(e) => setCampos({ ...campos, cartao: e.target.value })} />
+          <input
+            inputMode="decimal"
+            value={campos.cartao}
+            onChange={(e) => setCampos({ ...campos, cartao: e.target.value })}
+            onBlur={() => reformatar("cartao")}
+          />
         </label>
         <label>
           <span>Parcelas sem juros</span>

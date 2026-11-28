@@ -404,11 +404,12 @@
   color: var(--grafite);
   overflow: hidden;
 }
-/* Produto inteiro, com respiro de ~8%. Imagem pequena fica no tamanho dela
-   (ampliar borra); multiply some com o fundo branco das fotos de loja. */
+/* Produto inteiro, com respiro de ~8%; multiply some com o fundo branco das
+   fotos de loja. */
 .card__imagem img {
-  max-width: 84%;
-  max-height: 84%;
+  /* Ocupa o quadro (84% = respiro de ~8%); ImagemProduto limita a 2x o real. */
+  width: 84%;
+  height: 84%;
   object-fit: contain;
   mix-blend-mode: multiply;
 }

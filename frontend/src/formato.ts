@@ -40,6 +40,21 @@ export function deCentavos(c: bigint): Decimal {
   return `${c < 0n ? "-" : ""}${s.slice(0, -2)}.${s.slice(-2)}`;
 }
 
+const NUM = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** "4289.00" → "4.289,00": valor de campo de formulário, sem o "R$". */
+export function numeroBR(valor: Decimal): string {
+  return NUM.format(comoNumero(valor));
+}
+
+/** "4.289,00" (o que a pessoa digitou) → "4289.00"; null se não for valor.
+ *  Em pt-BR o ponto é milhar e a vírgula separa até 2 casas de centavos. */
+export function deNumeroBR(texto: string): Decimal | null {
+  const limpo = texto.replace(/[R$\s]/g, "").replace(/\./g, "");
+  const m = /^(\d+)(?:,(\d{1,2}))?$/.exec(limpo);
+  return m ? `${BigInt(m[1])}.${(m[2] ?? "").padEnd(2, "0")}` : null;
+}
+
 /** "-12.3" → "12,3%" (o sinal vira seta no selo, nunca só cor). */
 export function porcento(valor: Decimal, casas = 1): string {
   const fmt = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: casas });
