@@ -56,6 +56,7 @@ class Card(BaseModel):
     id: int
     titulo: str
     imagem: str | None
+    imagem_local: str | None = Field(None, description="cópia local (WebP) servida pela API; null = placeholder")
     categoria: str | None
     menor_preco: Decimal
     loja: str
@@ -97,6 +98,7 @@ class Oferta(BaseModel):
     vendedor: str | None
     variacao: dict
     imagem: str | None
+    imagem_local: str | None = None
     preco_de: Decimal | None
     preco: Decimal
     preco_pix: Decimal | None
@@ -155,6 +157,11 @@ class Historico(BaseModel):
 
 class VigiaEntrada(BaseModel):
     preco_alvo: Dinheiro | None = None
+
+
+class Vigia(BaseModel):
+    produto_id: int
+    preco_alvo: Decimal | None
 
 
 class Queda(BaseModel):

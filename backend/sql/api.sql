@@ -76,7 +76,8 @@ WITH o AS (
     SELECT DISTINCT ON (produto_id) produto_id, menor AS menor_visto, dia AS menor_visto_em
     FROM diario ORDER BY produto_id, menor, dia
 )
-SELECT p.id, p.titulo, coalesce(p.imagem, m.imagem) AS imagem, c.slug AS categoria,
+SELECT p.id, p.titulo, coalesce(p.imagem, m.imagem) AS imagem, '/api/v1/imagens/' || ib.arquivo AS imagem_local,
+       c.slug AS categoria,
        m.preco AS menor_preco, m.loja, m.loja_nome, m.loja_icone, m.url,
        px.menor_pix, coalesce(ou.outras_lojas, 0) AS outras_lojas, ou.outras_a_partir,
        r.ref_preco, r.ref_dia, mi.menor_visto, mi.menor_visto_em
@@ -86,7 +87,8 @@ JOIN pix px ON px.produto_id = p.id
 LEFT JOIN outras ou ON ou.produto_id = p.id
 LEFT JOIN categoria c ON c.id = p.categoria_id
 LEFT JOIN ref r ON r.produto_id = p.id
-LEFT JOIN minimo mi ON mi.produto_id = p.id;
+LEFT JOIN minimo mi ON mi.produto_id = p.id
+LEFT JOIN imagem_baixada ib ON ib.url = coalesce(p.imagem, m.imagem) AND ib.situacao = 'ok';
 
 -- name: buscar
 -- Plataforma e capacidade sempre exatas; o resto com todas as palavras presentes,
@@ -115,7 +117,9 @@ WHERE p.id = %(id)s;
 SELECT anuncio_id, loja, loja_nome, loja_icone, url, titulo_original, vendedor, variacao, imagem,
        preco_de, preco, preco_pix, parcelas_max, parcela_valor, parcelas_sem_juros, frete, em_estoque,
        coletado_em, ultima_coleta_em,
-       ultima_coleta_em < now() - interval '48 hours' AS desatualizada
+       ultima_coleta_em < now() - interval '48 hours' AS desatualizada,
+       (SELECT '/api/v1/imagens/' || b.arquivo FROM imagem_baixada b
+        WHERE b.url = oferta_atual.imagem AND b.situacao = 'ok') AS imagem_local
 FROM oferta_atual
 WHERE produto_id = %(id)s
 ORDER BY em_estoque IS FALSE, ultima_coleta_em < now() - interval '48 hours',
@@ -235,3 +239,7 @@ SELECT 1 FROM categoria WHERE slug = %(slug)s;
 -- Chips da home: a categoria inteira, mais recente primeiro (o card filtra sem oferta viva).
 SELECT p.id FROM produto p JOIN categoria c ON c.id = p.categoria_id
 WHERE c.slug = %(slug)s ORDER BY p.id DESC LIMIT 200;
+
+-- name: vigias
+-- O botão "vigiar" do card precisa saber o que já está vigiado.
+SELECT produto_id, preco_alvo FROM vigia WHERE perfil_id = %(perfil)s ORDER BY criado_em DESC;

@@ -164,6 +164,18 @@ def criar_app(url_banco: str | None = None, dir_dados: Path | None = None) -> Fa
         from fastapi.responses import JSONResponse
         return JSONResponse({"detail": str(e.diag.message_primary)}, status_code=422)
 
+    @app.get(f"{v1}/imagens/{{arquivo}}", tags=["produto"], response_class=Response,
+             summary="imagem de produto baixada pelo worker (WebP local; a tela nunca pede ao CDN)")
+    def imagem(arquivo: str, request: Request):
+        from fastapi.responses import FileResponse
+
+        # Só o nome que o baixador gera (hash.webp): nada de caminho vindo de fora.
+        caminho = request.app.state.dir_dados / "imagens" / arquivo
+        if not re.fullmatch(r"[0-9a-f]{1,40}\.webp", arquivo) or not caminho.is_file():
+            raise HTTPException(404, "imagem não encontrada")
+        return FileResponse(caminho, media_type="image/webp",
+                            headers={"Cache-Control": "public, max-age=604800, immutable"})
+
     @app.get(f"{v1}/lojas", response_model=list[m.Loja], tags=["catálogo"])
     def lojas(conn=Conn):
         return conn.execute(Q["lojas"]).fetchall()
@@ -261,6 +273,11 @@ def criar_app(url_banco: str | None = None, dir_dados: Path | None = None) -> Fa
         conn.execute(Q["vigiar"], {"perfil": pid, "produto": produto_id,
                                    "preco_alvo": corpo.preco_alvo if corpo else None})
         return Response(status_code=204)
+
+    @app.get(f"{v1}/perfis/{{pid}}/vigias", response_model=list[m.Vigia], tags=["vigia"])
+    def vigias(pid: UUID, conn=Conn):
+        _exigir(conn, "existe_perfil", pid, "perfil")
+        return conn.execute(Q["vigias"], {"perfil": pid}).fetchall()
 
     @app.delete(f"{v1}/perfis/{{pid}}/vigias/{{produto_id}}", status_code=204, tags=["vigia"])
     def desvigiar(pid: UUID, produto_id: int, conn=Conn):

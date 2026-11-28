@@ -304,3 +304,36 @@ def test_simular_valida_entrada(api):
         "preco_avista": "-1", "preco_cartao": "10", "parcelas": 1, "rendimento_mensal_pct": "1"}).status_code == 422
     assert api.post("/api/v1/pagamento/simular", json={
         "preco_avista": "10", "preco_cartao": "10", "parcelas": 40, "rendimento_mensal_pct": "1"}).status_code == 422
+
+
+def test_card_usa_a_imagem_baixada_e_a_api_serve_o_arquivo(banco, tmp_path):
+    anuncio(banco, "kabum", "k1", "Console Sony PlayStation 5 Slim Digital", [(1, "4000.00")])
+    associar(banco, [])
+    with psycopg.connect(banco, autocommit=True) as c:
+        (url,) = c.execute("UPDATE anuncio SET imagem = 'https://cdn/x.jpg' RETURNING imagem").fetchone()
+    with TestClient(criar_app(banco, tmp_path)) as api:
+        card = api.get("/api/v1/busca", params={"q": "ps5"}).json()["resultados"][0]
+        assert card["imagem"] == "https://cdn/x.jpg" and card["imagem_local"] is None  # ainda não baixou
+        with psycopg.connect(banco, autocommit=True) as c:
+            c.execute("INSERT INTO imagem_baixada (url, situacao, arquivo) VALUES (%s, 'ok', 'abc.webp')", (url,))
+        (tmp_path / "imagens").mkdir()
+        (tmp_path / "imagens" / "abc.webp").write_bytes(b"RIFF0000WEBP")
+        card = api.get("/api/v1/busca", params={"q": "ps5"}).json()["resultados"][0]
+        assert card["imagem_local"] == "/api/v1/imagens/abc.webp"
+        oferta = api.get(f"/api/v1/produtos/{card['id']}").json()["ofertas"][0]
+        assert oferta["imagem_local"] == "/api/v1/imagens/abc.webp"
+        r = api.get("/api/v1/imagens/abc.webp")
+        assert r.status_code == 200 and r.content == b"RIFF0000WEBP"
+        assert api.get("/api/v1/imagens/..%2F..%2Fsegredo").status_code == 404
+
+
+def test_lista_os_vigiados_do_perfil_com_preco_alvo(api, catalogo):
+    pid = perfil(api)
+    ps5 = api.get("/api/v1/busca", params={"q": "ps5"}).json()["resultados"][0]["id"]
+    dixit = api.get("/api/v1/busca", params={"q": "dixit"}).json()["resultados"][0]["id"]
+    assert api.get(f"/api/v1/perfis/{pid}/vigias").json() == []
+    api.post(f"/api/v1/perfis/{pid}/vigias/{ps5}", json={"preco_alvo": "3200.00"})
+    api.post(f"/api/v1/perfis/{pid}/vigias/{dixit}")
+    vigias = api.get(f"/api/v1/perfis/{pid}/vigias").json()
+    assert sorted((v["produto_id"], v["preco_alvo"]) for v in vigias) == sorted([(ps5, "3200.00"), (dixit, None)])
+    assert api.get("/api/v1/perfis/00000000-0000-0000-0000-000000000000/vigias").status_code == 404
