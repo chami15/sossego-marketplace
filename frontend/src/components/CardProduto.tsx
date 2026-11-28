@@ -1,55 +1,97 @@
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, Eye } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import type { Card } from "../api/cliente";
-import { partesReais, porcento, reais } from "../formato";
+import { dataCurta, partesReais, porcento, reais } from "../formato";
+import { useVigias } from "../vigias";
 import { IconeCategoria, iconeDoSlug } from "./IconeCategoria";
 import { IconeLoja } from "./IconeLoja";
 
-// Imagem do produto vem do CDN da loja: exibir é o navegador do dono pedindo
-// à loja. Desligado até o dono decidir (backlog); no lugar, o ícone da categoria.
-const IMAGENS_DAS_LOJAS = import.meta.env.VITE_IMAGENS_DAS_LOJAS === "sim";
-
-function dataCurta(iso: string) {
-  const [, m, d] = iso.split("-");
-  return `${d}/${m}`;
+/** Selo de variação contra o NOSSO histórico (nunca o "de" da loja): seta + %, não só cor. */
+export function SeloVariacao({ pct, desde }: { pct: string | null; desde: string | null }) {
+  if (pct === null || !desde || Number.parseFloat(pct) === 0) return null;
+  const caiu = pct.startsWith("-");
+  const Seta = caiu ? ArrowDown : ArrowUp;
+  return (
+    <span className={`selo selo--${caiu ? "queda" : "alta"}`}>
+      <Seta size={14} strokeWidth={2.5} aria-hidden="true" />
+      <span className="so-leitor">{caiu ? "caiu" : "subiu"} </span>
+      {porcento(pct)}
+      <span className="selo__desde"> desde {dataCurta(desde)}</span>
+    </span>
+  );
 }
 
+/** Preço grande: centavos menores e sobrescritos no visual; o texto lido é "R$ 4.289,00". */
+export function PrecoGrande({ valor, classe = "card__preco" }: { valor: string; classe?: string }) {
+  const p = partesReais(valor);
+  return (
+    <p className={`${classe} display`}>
+      <span className="so-leitor">{p.texto}</span>
+      <span aria-hidden="true">
+        <span className="preco__moeda">R$</span>
+        {p.inteiro}
+        <span className="preco__centavos">{p.centavos}</span>
+      </span>
+    </p>
+  );
+}
+
+export function BotaoVigiar({ produto, titulo, classe }: { produto: number; titulo: string; classe: string }) {
+  const v = useVigias();
+  const [ocupado, setOcupado] = useState(false);
+  if (!v.disponivel) return null;
+  const ligado = v.vigiado(produto);
+  return (
+    <button
+      type="button"
+      className={`${classe} ${ligado ? `${classe}--ligado` : ""}`}
+      aria-pressed={ligado}
+      aria-label={ligado ? `Parar de vigiar ${titulo}` : `Vigiar o preço de ${titulo}`}
+      title={ligado ? "Vigiando" : "Vigiar preço"}
+      disabled={ocupado}
+      onClick={async () => {
+        setOcupado(true);
+        try {
+          await v.alternar(produto);
+        } finally {
+          setOcupado(false);
+        }
+      }}
+    >
+      <Eye size={20} strokeWidth={ligado ? 2.25 : 1.75} aria-hidden="true" />
+    </button>
+  );
+}
+
+// Vitrine: a imagem é a protagonista. O link cobre o card inteiro (::after no
+// título); o botão vigiar fica por cima e não abre o produto.
 export function CardProduto({ card, porque }: { card: Card; porque?: string }) {
-  const preco = partesReais(card.menor_preco);
-  const v = card.variacao_pct;
-  const caiu = v !== null && v.startsWith("-");
   const pixMenor = card.menor_pix !== null && card.menor_pix !== card.menor_preco;
+  const [semImagem, setSemImagem] = useState(!card.imagem_local);
 
   return (
-    <Link to={`/produto/${card.id}`} className="card">
+    <article className="card">
       <div className="card__imagem">
-        {IMAGENS_DAS_LOJAS && card.imagem ? (
-          <img src={card.imagem} alt="" loading="lazy" referrerPolicy="no-referrer" />
+        {semImagem ? (
+          <IconeCategoria icone={iconeDoSlug(card.categoria)} tamanho={48} />
         ) : (
-          <span className="card__sem-imagem">
-            <IconeCategoria icone={iconeDoSlug(card.categoria)} tamanho={40} />
-          </span>
+          <img src={card.imagem_local!} alt="" loading="lazy" decoding="async" onError={() => setSemImagem(true)} />
         )}
-        {v !== null && v !== "0.0" && card.variacao_desde && (
-          <span className={`selo selo--${caiu ? "queda" : "alta"}`}>
-            {caiu ? <ArrowDown size={14} strokeWidth={2.5} aria-hidden="true" /> : <ArrowUp size={14} strokeWidth={2.5} aria-hidden="true" />}
-            <span className="so-leitor">{caiu ? "caiu" : "subiu"}</span>
-            {porcento(v)}
-            <span className="selo__desde"> desde {dataCurta(card.variacao_desde)}</span>
-          </span>
-        )}
+        <BotaoVigiar produto={card.id} titulo={card.titulo} classe="card__vigiar" />
       </div>
       <div className="card__corpo">
-        <h3 className="card__titulo">{card.titulo}</h3>
-        <p className="card__preco">
-          <span className="card__moeda">R$</span>
-          {preco.inteiro}
-          <span className="card__centavos">,{preco.centavos}</span>
-        </p>
+        <SeloVariacao pct={card.variacao_pct} desde={card.variacao_desde} />
+        <PrecoGrande valor={card.menor_preco} />
         {pixMenor && <p className="card__pix">Pix {reais(card.menor_pix!)}</p>}
+        <h3 className="card__titulo">
+          <Link to={`/produto/${card.id}`} className="card__link">
+            {card.titulo}
+          </Link>
+        </h3>
         <p className="card__loja">
-          <IconeLoja nome={card.loja_nome} icone={card.loja_icone} tamanho={20} />
+          <IconeLoja slug={card.loja} nome={card.loja_nome} tamanho={20} />
           {card.loja_nome}
         </p>
         {card.outras_lojas > 0 && card.outras_a_partir && (
@@ -59,6 +101,6 @@ export function CardProduto({ card, porque }: { card: Card; porque?: string }) {
         )}
         {porque && <p className="card__porque">{porque}</p>}
       </div>
-    </Link>
+    </article>
   );
 }

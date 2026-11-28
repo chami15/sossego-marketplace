@@ -324,7 +324,7 @@ export function Onboarding() {
                     recusado={recusado === l.slug}
                     onAlternar={() => alternar(lojas, setLojas, l.slug)}
                   >
-                    <IconeLoja nome={l.nome} icone={l.icone} />
+                    <IconeLoja slug={l.slug} nome={l.nome} />
                     <span className="loja__nome">{l.nome}</span>
                   </OpcaoVarias>
                 ))}

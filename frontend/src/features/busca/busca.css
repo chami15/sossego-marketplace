@@ -114,8 +114,8 @@
 }
 .busca__vazio-titulo {
   margin-bottom: var(--esp-2);
-  font-family: var(--fonte-display);
-  font-size: 1.5rem;
+  font-size: 1.25rem;
+  font-weight: 650;
   color: var(--azul-profundo);
 }
 

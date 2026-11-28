@@ -19,9 +19,8 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Fraunces só em tamanho grande: título de página (h1) e preço (.display). */
 h1,
-h2,
-h3,
 .display {
   font-family: var(--fonte-display);
   font-variation-settings: "opsz" 144, "SOFT" 0, "WONK" 0;
@@ -32,6 +31,15 @@ h3,
   /* Em opsz alto a Fraunces fica apertada: abre um pouco letras e palavras. */
   letter-spacing: 0.012em;
   word-spacing: 0.04em;
+}
+
+h2,
+h3 {
+  font-family: var(--fonte-texto);
+  color: var(--azul-profundo);
+  font-weight: 650;
+  line-height: 1.25;
+  margin: 0;
 }
 
 p {

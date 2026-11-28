@@ -34,6 +34,7 @@ export interface Card {
   id: number;
   titulo: string;
   imagem: string | null;
+  imagem_local: string | null; // WebP baixado pelo worker; o CDN da loja nunca é pedido pela tela
   categoria: string | null;
   menor_preco: string;
   loja: string;
@@ -88,6 +89,111 @@ export interface SaudeLoja {
   ultima_ok: string | null;
 }
 
+export interface Vigia {
+  produto_id: number;
+  preco_alvo: string | null;
+}
+
+export interface Oferta {
+  anuncio_id: number;
+  loja: string;
+  loja_nome: string;
+  url: string;
+  titulo_original: string;
+  vendedor: string | null;
+  variacao: Record<string, string>;
+  imagem: string | null;
+  imagem_local: string | null;
+  preco_de: string | null;
+  preco: string;
+  preco_pix: string | null;
+  parcelas_max: number | null;
+  parcela_valor: string | null;
+  parcelas_sem_juros: number | null;
+  frete: string | null;
+  em_estoque: boolean | null;
+  coletado_em: string;
+  ultima_coleta_em: string;
+  desatualizada: boolean;
+}
+
+export interface PrecoVisto {
+  preco: string;
+  em: string;
+  loja: string;
+}
+
+export interface Produto {
+  id: number;
+  titulo: string;
+  marca: string | null;
+  modelo: string | null;
+  gtin: string | null;
+  imagem: string | null;
+  descricao: string | null;
+  especificacoes: Record<string, string>;
+  categoria: string | null;
+  a_confirmar: boolean;
+  ofertas: Oferta[];
+  menor_visto: PrecoVisto | null;
+}
+
+export type Periodo = "24h" | "7d" | "30d" | "tudo";
+
+export interface Ponto {
+  em: string;
+  preco: string;
+  preco_pix?: string | null;
+}
+
+export interface Serie {
+  anuncio_id: number;
+  loja: string;
+  titulo: string;
+  pontos: Ponto[];
+}
+
+export interface Historico {
+  produto_id: number;
+  periodo: Periodo;
+  desde: string | null;
+  series: Serie[];
+  menor_geral: Ponto[];
+  menor_visto: PrecoVisto | null;
+}
+
+export interface SimulacaoEntrada {
+  preco_avista: string;
+  preco_cartao: string;
+  parcelas: number;
+  valor_parcela?: string | null;
+  pct_cdi?: string;
+  cashback_pct?: string;
+}
+
+export interface OpcaoPagamento {
+  tipo: "pix" | "parcelado";
+  parcelas: number | null;
+  valor_parcela: string | null;
+  total: string;
+  valor_presente: string;
+  cashback: string;
+  custo_efetivo: string;
+  desconto_equilibrio_pct: string | null;
+  juros_mensal_pct: string | null;
+}
+
+export interface Simulacao {
+  recomendacao: string;
+  melhor: OpcaoPagamento;
+  opcoes: OpcaoPagamento[];
+  desconto_pix_pct: string;
+  economia: string;
+  rendimento_fonte: "informado" | "cdi_bcb";
+  cdi_anual_pct: string | null;
+  cdi_data: string | null;
+}
+
 export class ErroApi extends Error {
   constructor(public status: number, mensagem: string) {
     super(mensagem);
@@ -108,6 +214,7 @@ async function pedir<T>(caminho: string, init?: RequestInit): Promise<T> {
     const corpo = await r.json().catch(() => null);
     throw new ErroApi(r.status, typeof corpo?.detail === "string" ? corpo.detail : `HTTP ${r.status}`);
   }
+  if (r.status === 204) return undefined as T;
   return r.json() as Promise<T>;
 }
 
@@ -131,4 +238,14 @@ export const api = {
     return pedir<ResultadoBusca>(`/busca?${p}`);
   },
   saude: () => pedir<{ lojas: SaudeLoja[] }>("/saude"),
+  vigias: (perfil: string) => pedir<Vigia[]>(`/perfis/${perfil}/vigias`),
+  vigiar: (perfil: string, produto: number, preco_alvo: string | null = null) =>
+    pedir<void>(`/perfis/${perfil}/vigias/${produto}`, { method: "POST", body: JSON.stringify({ preco_alvo }) }),
+  desvigiar: (perfil: string, produto: number) =>
+    pedir<void>(`/perfis/${perfil}/vigias/${produto}`, { method: "DELETE" }),
+  produto: (id: number) => pedir<Produto>(`/produtos/${id}`),
+  historico: (id: number, periodo: Periodo) => pedir<Historico>(`/produtos/${id}/historico?periodo=${periodo}`),
+  parecidos: (id: number) => pedir<Card[]>(`/produtos/${id}/parecidos`),
+  simular: (e: SimulacaoEntrada) =>
+    pedir<Simulacao>("/pagamento/simular", { method: "POST", body: JSON.stringify(e) }),
 };
