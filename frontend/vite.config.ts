@@ -9,7 +9,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: "127.0.0.1",
-    port: Number(process.env.SOSSEGO_WEB_PORTA ?? 5173),
+    // 5190: a 5173 (padrão do Vite) é de outra aplicação do dono; a 5180 é do e2e.
+    port: Number(process.env.SOSSEGO_WEB_PORTA ?? 5190),
     strictPort: true,
     proxy: { "/api": api },
   },
