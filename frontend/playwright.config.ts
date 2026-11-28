@@ -22,9 +22,9 @@ export default defineConfig({
   },
   projects: [
     { name: "e2e", testMatch: ["onboarding.spec.ts", "busca.spec.ts", "produto.spec.ts"], use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
-    // Prints de fases anteriores (prints.spec.ts = 6, prints-fase07 = 7) são registro:
+    // Prints de fases anteriores (prints.spec.ts = 6, prints-fase07/08) são registro:
     // rodá-los de novo sobrescreveria o histórico com a tela atual.
-    { name: "prints", testMatch: ["prints-fase08.spec.ts"], use: { ...devices["Desktop Chrome"] } },
+    { name: "prints", testMatch: ["prints-fase09.spec.ts"], use: { ...devices["Desktop Chrome"] } },
   ],
   webServer: [
     {

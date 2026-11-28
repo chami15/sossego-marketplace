@@ -41,14 +41,15 @@ ANUNCIOS = [
     ("amazon", "e2e-mk8-a", "Mario Kart 8 Deluxe - Nintendo Switch", [(2, "319.00")], None, {}),
     ("ludopedia", "e2e-dixit", "Dixit", [(150, "219.90"), (1, "199.90")], None, {"cor": "#f0b429"}),
     ("ri-happy", "e2e-dixit-r", "Jogo Dixit - Galápagos", [(3, "189.90")], "180.40", {}),
-    ("ludopedia", "e2e-ito", "Ito", [(50, "129.90"), (1, "139.90")], None, {}),
+    # Capa de 60 px, como as da busca da Ludopedia (só existe o tamanho _s).
+    ("ludopedia", "e2e-ito", "Ito", [(50, "129.90"), (1, "139.90")], None, {"cor": "#3a7d44", "lado": 60}),
     ("ludopedia", "e2e-cascadia", "Cascadia", [(1, "249.90")], None, {}),  # um ponto só: "começamos hoje"
     ("kabum", "e2e-note", "Notebook Lenovo IdeaPad Slim 3, Intel Core i5, 16GB RAM, SSD 512GB, 15.6\"",
      [(60, "3299.00"), (1, "2999.00")], "2849.05", {"cor": "#7b8494"}),
 ]
 
 
-def _desenhar(destino: Path, url: str, cor: str) -> str:
+def _desenhar(destino: Path, url: str, cor: str, lado: int = 400) -> str:
     """Um "produto" chapado (caixa com sombra) em fundo branco, como foto de loja."""
     from PIL import Image, ImageDraw
 
@@ -57,6 +58,8 @@ def _desenhar(destino: Path, url: str, cor: str) -> str:
     d.rectangle((92, 300, 316, 316), fill="#dcdde2")
     d.rounded_rectangle((100, 70, 300, 300), radius=10, fill=cor)
     d.rectangle((120, 96, 280, 120), fill="#ffffff")
+    if lado != 400:
+        img = img.resize((lado, lado))
     nome = hashlib.sha1(url.encode()).hexdigest()[:20] + ".webp"
     destino.mkdir(parents=True, exist_ok=True)
     img.save(destino / nome, "WEBP", quality=80)
@@ -82,9 +85,10 @@ def semear(url: str, dir_dados: Path | None = None) -> int:
                           (aid, agora - timedelta(hours=horas), Decimal(preco), pix, extra.get("parcelas_max"),
                            extra.get("parcela_valor"), extra.get("parcelas_sem_juros"), extra.get("frete")))
             if dir_dados and "cor" in extra:
-                nome = _desenhar(dir_dados / "imagens", imagem, extra["cor"])
+                lado = extra.get("lado", 400)
+                nome = _desenhar(dir_dados / "imagens", imagem, extra["cor"], lado)
                 c.execute("INSERT INTO imagem_baixada (url, situacao, arquivo, largura, altura)"
-                          " VALUES (%s, 'ok', %s, 400, 400)", (imagem, nome))
+                          " VALUES (%s, 'ok', %s, %s, %s)", (imagem, nome, lado, lado))
         # Calculadora: sem a taxa do BCB a simulação responde 503.
         c.execute("INSERT INTO taxa_referencia (data, cdi_anual, selic_meta, selic_data) VALUES (%s, 13.65, 13.75, %s)",
                   (date.today(), date.today()))
