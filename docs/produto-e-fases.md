@@ -103,7 +103,7 @@ Atualizado em 27/11/2026 (Black Friday).
     testes de busca → card → produto, filtros, home, vazio, autocomplete e
     regressão de largura no celular.
   - Prints em `docs/prints/fase-07/` (1440 e 390 px).
-- **Fase 8 (27/11, aguardando aprovação dos prints)** — `fase/08-pagina-produto`
+- **Fase 8 (27/11, aprovada com correções feitas no começo da Fase 9)** — `fase/08-pagina-produto`
   - Correções da 7: formatador único (`Intl.NumberFormat` pt-BR, vírgula nos
     centavos, teste de regressão); Fraunces só em título de página e preço.
   - Card estilo vitrine: grade 6/4/2 colunas, imagem 1:1 em cinza `#F2F3F5`,
@@ -123,6 +123,18 @@ Atualizado em 27/11/2026 (Black Friday).
   - API: `GET /perfis/{id}/vigias`; `imagem_local` no card e na oferta.
   - Testes: 231 backend, 21 e2e (9 novos da página de produto), 5 unitários.
   - Prints em `docs/prints/fase-08/` (1440 e 390 px).
+
+- **Fase 9 (27/11, em andamento)** — `fase/09-mais-lojas`
+  - Correções da 8:
+    - preço e botão da melhor oferta com o mesmo valor, frete explícito embaixo;
+    - galeria segue a variação;
+    - galeria em ~40%; ofertas em bloco quando a coluna fica estreita (container query);
+    - imagem nunca estica além de 2x o tamanho real;
+    - "Vendido por" só na tabela; seção Sobre só com descrição ou especificações;
+    - situação das lojas: cinza para "sem dados da coleta", vermelho só para bloqueada ou atrasada;
+    - calculadora sem desconto no Pix com frase própria e campos em pt-BR (4.289,00).
+  - Kabum: tentativa manual no CDN de imagens (robots 403, imagem 200); segue desligado.
+  - Prints em `docs/prints/fase-09/`.
 
 ### Ocorrências da Black Friday (27/11)
 

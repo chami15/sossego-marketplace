@@ -38,10 +38,11 @@
   ordem diferente). Só mexer com par rotulado novo, sem perder precisão.
 
 ## Frontend
-- **Imagens da Kabum: sem nenhuma.** O robots.txt de `images.kabum.com.br`
-  respondeu 403 em 27/11; o CDN foi desligado na mão (`docs/fontes/imagens.md`).
-  É a loja com mais produtos. Decisão do dono: deixar assim ou 1 tentativa
-  manual (`religar cdn:images.kabum.com.br`) com ele olhando.
+- **Imagens da Kabum: decisão do dono.** Na tentativa manual de 27/11 (21:29),
+  o robots.txt de `images.kabum.com.br` deu 403 de novo e a imagem deu 200
+  (`docs/fontes/imagens.md`). Para o worker baixar as ~298, a chave
+  `cdn:images.kabum.com.br` precisaria tratar robots 403 como ausente (RFC 9309),
+  no ritmo de sempre (30/h, 150/dia). Até lá: desligado, placeholder.
 - Capas da Ludopedia pequenas (51–75 px): a busca só traz o `_s`. Tamanho maior
   exigiria a página do produto (recon + "pode").
 - Preço "de" riscado no card: fora até o dado ser confiável (o "de" da Kabum
@@ -51,6 +52,8 @@
   por loja exige paleta validada maior que 3 (a skill corta em 3 nos pares todos).
 - Página de produto: galeria só com a imagem de cada oferta (uma por loja);
   descrição e especificações aparecem quando o parser gravar (hoje vazias).
+- Calculadora: com 1 parcela e Pix = cartão ela ainda aparece (diz "pague no
+  cartão em 1x"); talvez esconder quando não há escolha real.
 - Filtro "só com estoque" (Tela 2 do prompt) não entrou: o card já exige
   oferta em estoque vista nas últimas 48 h, então o filtro não mudaria nada.
 - Situação das lojas na busca é a da coleta (`/saude`), não um progresso ao
