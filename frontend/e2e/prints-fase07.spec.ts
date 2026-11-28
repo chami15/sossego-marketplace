@@ -1,7 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
 // Prints da Fase 7 (home, busca, produto provisório) em docs/prints/fase-07/,
-// com o banco do e2e semeado por backend/db/semente_e2e.py.
+// com o banco do e2e semeado por backend/db/semente_e2e.py. Registro histórico:
+// fora do projeto "prints" desde a Fase 8 (o produto provisório não existe mais).
 const TELAS = [
   { nome: "desktop", viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 },
   { nome: "mobile", viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 },

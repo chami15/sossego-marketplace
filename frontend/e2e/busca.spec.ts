@@ -23,16 +23,17 @@ test("busca → card → produto: menor preço, lojas, Pix e variação real", a
   await expect(page.getByText("1 produto")).toBeVisible();
 
   const card = cards(page).first();
-  await expect(card).toContainText("R$299,90"); // Kabum vence a Amazon (319,00)
+  // Texto lido: formato brasileiro completo, vírgula nos centavos (regressão do "4.289.00").
+  await expect(card.locator(".card__preco .so-leitor")).toHaveText("R$ 299,90"); // Kabum vence a Amazon
   await expect(card).toContainText("Pix R$ 284,90");
   await expect(card).toContainText("Kabum");
   await expect(card).toContainText("+1 loja a partir de R$ 319,00");
-  await expect(card.locator(".selo--queda")).toContainText("caiu14,3%"); // seta + texto, não só cor
+  await expect(card.locator(".selo--queda")).toContainText(/caiu\s*14,3%/); // seta + texto, não só cor
 
   await card.click(); // o card inteiro é o link
   await expect(page).toHaveURL(/\/produto\/\d+$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Mario Kart 8 Deluxe");
-  await expect(page.getByRole("link", { name: "Ver na loja" })).toHaveCount(2);
+  await expect(page.getByRole("link", { name: "Ir para a loja" })).toHaveCount(2);
 });
 
 test("ordenar e filtrar ficam na URL e mudam o resultado", async ({ page }) => {
@@ -64,13 +65,13 @@ test("home: seções com cards e chip de categoria abre a categoria", async ({ p
   await expect(page.getByRole("heading", { name: "Pra você" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "De olho" })).toBeVisible();
   // Produto não se repete entre seções (Pra você e Caiu de preço se sobrepõem na API).
-  const links = await page.locator(".grade-cards .card").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
+  const links = await page.locator(".grade-cards .card__link").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
   expect(links.length).toBeGreaterThan(0);
   expect(new Set(links).size).toBe(links.length);
   await page.getByRole("link", { name: "Jogos de tabuleiro", exact: true }).click();
   await expect(page).toHaveURL(/categoria=jogos-tabuleiro/);
   await expect(page.getByRole("heading", { name: "Jogos de tabuleiro" })).toBeVisible();
-  await expect(cards(page)).toHaveCount(2); // Dixit e Ito
+  await expect(cards(page)).toHaveCount(3); // Dixit, Ito e Cascadia
 });
 
 test("busca sem nada no histórico explica de onde vêm os preços", async ({ page }) => {
@@ -93,9 +94,10 @@ test("autocomplete: a busca feita volta como sugestão", async ({ page }) => {
 test("regressão: no celular a busca estourava a largura da tela", async ({ page }) => {
   await comPerfil(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const url of ["/", "/busca?q=ps5"]) {
+  const ps5 = (await (await page.request.get("/api/v1/busca?q=console%20ps5")).json()).resultados[0].id;
+  for (const url of ["/", "/busca?q=ps5", `/produto/${ps5}`]) {
     await page.goto(url);
-    await expect(cards(page).first()).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await expect(page.locator(".card, .melhor").first()).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), url).toBeLessThanOrEqual(390);
   }
 });
