@@ -22,6 +22,9 @@ com Postgres; frontend React depois.
 11. **Ícones só em SVG do `lucide-react`** (traço 1,5–2). Nunca emoji nem
     símbolo de texto no lugar de ícone (✓, ×, →), em lugar nenhum do app.
     Texto só o necessário: o que se explica sozinho não ganha legenda.
+    Exceção (pedido do dono, 27/11): logo de loja vem do pacote `simple-icons`
+    (SVG CC0, local, monocromático); loja sem logo lá fica com o monograma.
+    Nunca favicon de terceiro.
 
 ## Coleta segura e educada (INEGOCIÁVEL)
 
@@ -62,6 +65,8 @@ Windows sem make: `.\sossego.ps1 <alvo>` faz o mesmo que `make <alvo>`.
 | `.\sossego.ps1 matching [--refazer]` | anúncio → produto (ADR 002); o worker já roda no fim de cada rodada; `--refazer` quando a regra mudar |
 | `.\sossego.ps1 api` | API em http://127.0.0.1:8000 (OpenAPI em `/docs`); só lê/grava o banco, nunca chama loja |
 | `cd backend; uv run python -m pagamento.taxas [--dry-run]` | taxas do BCB agora (o worker já faz ~1x/dia) |
+| `cd backend; uv run python -m coleta.imagens [--dry-run]` | imagens de produto: volume por CDN (dry-run) ou uma passada; o worker já faz a cada 30 min |
+| `cd frontend; npm run test:unit` | testes do formatador (`node --test`, sem rede) |
 | `cd frontend; npm run dev` | tela em http://127.0.0.1:5173 (precisa da API de pé) |
 | `cd frontend; npm run e2e` / `npm run prints` | Playwright: sobe API + Vite num banco `sossego_e2e` próprio; prints em `docs/prints/` |
 | `docker compose --profile ferramentas up -d adminer` | Adminer em http://127.0.0.1:8081 |

@@ -85,7 +85,7 @@ Atualizado em 27/11/2026 (Black Friday).
   - e2e (Playwright) com a API real num banco só dele (`sossego_e2e`, recriado
     por `db/recriar.py`, que recusa bancos que não terminem em `_test`/`_e2e`).
   - Prints em `docs/prints/fase-06/` (1440 e 390 px).
-- **Fase 7 (27/11, aguardando aprovação dos prints)** — `fase/07-inicio-e-busca`
+- **Fase 7 (27/11, aprovada com correções feitas no começo da Fase 8)** — `fase/07-inicio-e-busca`
   - Home: capa azul com "O que você quer comprar hoje?" e busca com autocomplete
     das buscas recentes (só neste navegador); seções De olho / Pra você / Caiu de
     preço, sem repetir produto entre elas; chips de categoria.
@@ -103,9 +103,31 @@ Atualizado em 27/11/2026 (Black Friday).
     testes de busca → card → produto, filtros, home, vazio, autocomplete e
     regressão de largura no celular.
   - Prints em `docs/prints/fase-07/` (1440 e 390 px).
+- **Fase 8 (27/11, aguardando aprovação dos prints)** — `fase/08-pagina-produto`
+  - Correções da 7: formatador único (`Intl.NumberFormat` pt-BR, vírgula nos
+    centavos, teste de regressão); Fraunces só em título de página e preço.
+  - Card estilo vitrine: grade 6/4/2 colunas, imagem 1:1 em cinza `#F2F3F5`,
+    selo de variação, preço com centavos sobrescritos, Pix em verde, título em
+    2 linhas (Literata), loja e "+N lojas"; botão vigiar (olho) no canto,
+    no hover no desktop e sempre no celular, sem abrir o produto.
+  - Imagens: baixadas pelo worker (`coleta/imagens.py`, ver `docs/fontes/imagens.md`),
+    servidas em `/api/v1/imagens/`; tabela `imagem_baixada` (migration 006).
+  - Logos de loja do `simple-icons` (4 de 26); o resto, monograma.
+  - Página de produto: galeria; título e marca; seletor de variação; melhor
+    oferta com "Comprar na X por R$ Y"; tabela de ofertas por custo efetivo
+    (menor entre Pix e cartão + frete), com "Ir para a loja" em nova aba
+    (vira blocos no celular); sobre o produto. Lateral: gráfico em degrau por
+    loja + faixa do menor geral (paleta validada pela skill dataviz), período
+    24h/7d/30d/tudo, mira com tooltip, tabela; "Menor preço que vimos"; "Ficar
+    de olho" com preço-alvo; calculadora Pix × parcelado; parecidos.
+  - API: `GET /perfis/{id}/vigias`; `imagem_local` no card e na oferta.
+  - Testes: 230 backend, 21 e2e (9 novos da página de produto), 5 unitários.
+  - Prints em `docs/prints/fase-08/` (1440 e 390 px).
 
 ### Ocorrências da Black Friday (27/11)
 
+- Noite: robots.txt de `images.kabum.com.br` respondeu 403 na 1ª passada de
+  imagens. Breaker abriu; CDN desligado na mão. Nenhuma imagem da Kabum.
 - Sem coleta de 26/11 20:00 a 27/11 15:01: PC desligado. Não recuperável.
 - 15:11: Amazon respondeu com desafio Akamai (`bm-verify`). Virou marcador de
   bloqueio; o dono desligou a Amazon até segunda 30/11 (migration 002).
@@ -118,6 +140,5 @@ Atualizado em 27/11/2026 (Black Friday).
 
 ## Falta
 
-- Fases 8 a 10 (produto, mais lojas, polimento).
-- Ícones das lojas: o robots do Google proíbe os favicons; fonte a decidir.
+- Fases 9 e 10 (mais lojas, polimento).
 - Ajustes pequenos e pendências de loja: `docs/backlog.md`.

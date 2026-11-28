@@ -1,15 +1,14 @@
-# Ícones das lojas (onboarding)
+# Ícones das lojas
 
 Verificado em 27/11/2026.
 
-- **Plano do dono:** baixar uma vez pelo serviço de favicons do Google
-  (`https://www.google.com/s2/favicons?domain=<dominio>&sz=128`), pelo
-  `ClienteEducado`, sem nenhuma requisição às lojas (`backend/coleta/icones.py`).
-- **Resultado:** bloqueado pelo robots.txt. O `robots.txt` de `www.google.com`
-  (HTTP 200) tem, em `User-agent: *`, a regra `Disallow: /s2`. Os `Allow`
-  dessa área cobrem só `/s2/profiles`, `/s2/oz`, `/s2/photos`,
-  `/s2/search/social` e `/s2/static`; `/s2/favicons` não está entre eles.
-- **Requisições feitas:** 1, só o `robots.txt`. O cliente recusou o primeiro
-  ícone (`BloqueadaPorRobots`) e o script parou ali, sem tentar os outros.
-- **Hoje:** a tela mostra monogramas (iniciais da loja) para as 26 lojas.
-- **Pendente:** decisão do dono sobre outra fonte (backlog).
+- **Hoje:** pacote `simple-icons` 16.38.1 (SVG, CC0, instalado no frontend,
+  zero requisições). Desenhado monocromático (`currentColor`) num quadrado
+  claro, como os monogramas. Decisão do dono em 27/11.
+- **Cobertura:** 4 das 26 lojas têm logo lá: AliExpress, Carrefour, Leroy
+  Merlin e Shopee. As outras (inclusive Amazon, Kabum, Mercado Livre, Magalu,
+  Ri Happy, Ludopedia) ficam com o monograma. Mercado Pago está no pacote, mas
+  é outra marca: não serve para o Mercado Livre.
+- **Descartado:** favicons do Google (`/s2/favicons`): o robots.txt de
+  `www.google.com` tem `Disallow: /s2` em `User-agent: *` (1 requisição, só o
+  robots, em 27/11). E a regra agora é nunca usar favicon de terceiro.

@@ -38,12 +38,19 @@
   ordem diferente). Só mexer com par rotulado novo, sem perder precisão.
 
 ## Frontend
-- Ícones das lojas: o robots.txt do Google proíbe `/s2` (favicons). Escolher
-  outra fonte, ou ficar com os monogramas (`docs/fontes/icones.md`).
-- Imagens dos produtos: a URL é do CDN da loja (ex.: `images.kabum.com.br`).
-  Exibir = o navegador do dono pedindo à loja a cada tela. Desligado; no lugar,
-  o ícone da categoria. `VITE_IMAGENS_DAS_LOJAS=sim` liga. Alternativa: baixar
-  uma vez pelo `ClienteEducado` e servir local. Decisão do dono.
+- **Imagens da Kabum: sem nenhuma.** O robots.txt de `images.kabum.com.br`
+  respondeu 403 em 27/11; o CDN foi desligado na mão (`docs/fontes/imagens.md`).
+  É a loja com mais produtos. Decisão do dono: deixar assim ou 1 tentativa
+  manual (`religar cdn:images.kabum.com.br`) com ele olhando.
+- Capas da Ludopedia pequenas (51–75 px): a busca só traz o `_s`. Tamanho maior
+  exigiria a página do produto (recon + "pode").
+- Preço "de" riscado no card: fora até o dado ser confiável (o "de" da Kabum
+  não bate com o JSON; parser v5 grava vazio).
+- Cor da loja no gráfico de preço segue a ordem alfabética das lojas DAQUELE
+  produto: a mesma loja pode ter cor diferente em outro produto. Fixar uma cor
+  por loja exige paleta validada maior que 3 (a skill corta em 3 nos pares todos).
+- Página de produto: galeria só com a imagem de cada oferta (uma por loja);
+  descrição e especificações aparecem quando o parser gravar (hoje vazias).
 - Filtro "só com estoque" (Tela 2 do prompt) não entrou: o card já exige
   oferta em estoque vista nas últimas 48 h, então o filtro não mudaria nada.
 - Situação das lojas na busca é a da coleta (`/saude`), não um progresso ao
@@ -57,8 +64,6 @@
 ## Pagamento
 - BCB série 432 (Selic) respondeu 304 sem corpo em 27/11 (`docs/fontes/bcb.md`).
   Se continuar, investigar os cabeçalhos do curl_cffi. A Selic é só referência.
-- Ordenar as ofertas da página do produto pelo custo efetivo. A calculadora já
-  existe; falta ligar na rota de produto, junto com a tela da Fase 8.
 
 ## API
 - Tipo de produto quando o título não diz: "Sony PlayStation 5 Edição Digital
